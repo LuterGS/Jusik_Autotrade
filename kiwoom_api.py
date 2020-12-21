@@ -5,6 +5,18 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QAxContainer import *
 
+"""
+키움증권 API 핸들러
+
+들어가기 전 주의점 (겪은 문제점)
+1. 파이썬 버전이 32bit이어야만 동작한다. 그러니, 64bit에선 실행하지 않도록 하자
+2. 2020년 12월 20일에 최신화된 키움증권 OpenAPI+를 사용한다.
+
+밑의 클래스 TextKiwoom을 이용하면, 클래스 내 메소드들만 호출하는 방식으로 원하는 값을 얻을 수 있다.
+기존의 OpenAPI는 이벤트 핸들러 방식이라 원하는 값 하나를 얻기 위해서 여러 코드를 직접 선언해줘야 했지만, 
+해당 클래스를 이용하면 구현된 함수만 호출하면 원하는 값을 return 해준다.
+"""
+
 
 class TextKiwoom(QAxWidget):
 
@@ -82,7 +94,11 @@ class TextKiwoom(QAxWidget):
         return str(account_num).replace(";", "")
 
     def get_balance(self, account_num):
-        # TR opw00004: 계좌평가현황을 사용
+        """
+        TR opw00004: 계좌평가현황을 사용
+        :param account_num: 예수금을 조회하고자 하는 계좌의 계좌번호
+        :return: 계좌의 예수금 (int)
+        """
 
         # KOAStudio 참고
         # 4개의 요청한 입력을 넣음
@@ -101,22 +117,12 @@ class TextKiwoom(QAxWidget):
         # 이럴 때는 KOAStudio에서 OpenAPI 접속후 우하단 위젯 우클릿 -> 계좌비밀번호 저장 들어가서
         # 해당 비밀번호 저장해놓을 것
         result = self._get_received_data()
-        result[1] = result[1][0:3]
-        return result
+        return int(result[2])
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)    # 이게 키움증권 Load시 필수임
     test = TextKiwoom()
-
-
-def get_balance():
-    """
-
-    :return: 계좌의 잔고 금액을 int형으로 return
-    """
-    return 10000
-
 
 def buy_stock(ticker: str, amount: int):
     """
