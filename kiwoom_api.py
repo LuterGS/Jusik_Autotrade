@@ -22,15 +22,12 @@ class TextKiwoom(QAxWidget):
         self.setControl("KHOPENAPI.KHOpenAPICtrl.1")
         self.OnEventConnect.connect(self._login_handler)
         self.OnReceiveTrData.connect(self._receive_tran)
-        print("Loading OCX and Register handler complete")
         self._login()
 
     def _login(self):
         self.dynamicCall("CommConnect()")
-        print("dynamicCall Login method complete")
         self.login_event_loop = QEventLoop()
         self.login_event_loop.exec_()
-        print("currently loop is active")
 
     def _login_handler(self, message):
         if message == 0:
@@ -50,7 +47,6 @@ class TextKiwoom(QAxWidget):
         :return: 해당 출력값
         """
         result = self.dynamicCall(self.FUNC_REQUEST_COMM_DATA, user_trans_name, trans_name, prev_next, screen_no)
-        print("in _send_tran, ", result)
         return result
 
     def _receive_tran(self, screen_no, user_trans_name, trans_name, record_name, prev_next, u1, u2, u3, u4):
@@ -64,15 +60,22 @@ class TextKiwoom(QAxWidget):
         :param u1 ~ u4: 필요없는 값, 명세에 써야한다 나와있어서 넣음
         :return: 해당 명세에 따른 반환값
         """
-        print(screen_no, user_trans_name, trans_name, record_name)
+        print("receive tran : ", screen_no, user_trans_name, trans_name, record_name)
         if user_trans_name == "계좌평가현황요청":
             acc_name = self.dynamicCall(self.FUNC_GET_COMM_DATA, trans_name, user_trans_name, 0, "계좌명")
             balance = self.dynamicCall(self.FUNC_GET_COMM_DATA, trans_name, user_trans_name, 0, "예수금")
-            print("name:", acc_name, "  balance:", balance)
             self.received_data.append([user_trans_name, acc_name, balance])
             self.received = True
         self.loop1.exit()
 
+    def _get_received_data(self):
+        self.loop1 = QEventLoop()
+        self.loop1.exec_()
+        while True:
+            if self.received:
+                data = self.received_data.pop()
+                self.received = False
+                return data
 
     def get_account_num(self):
         account_num = self.dynamicCall("GetLoginInfo(QString)", ["ACCNO"])
@@ -97,14 +100,10 @@ class TextKiwoom(QAxWidget):
         # 여기서 에러가 날 수 있음 (비밀번호 확인 관련)
         # 이럴 때는 KOAStudio에서 OpenAPI 접속후 우하단 위젯 우클릿 -> 계좌비밀번호 저장 들어가서
         # 해당 비밀번호 저장해놓을 것
-        self.loop1 = QEventLoop()
-        self.loop1.exec_()
+        result = self._get_received_data()
+        result[1] = result[1][0:3]
+        return result
 
-        while True:
-            if self.received:
-                data = self.received_data.pop()
-                self.received = False
-                return data
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)    # 이게 키움증권 Load시 필수임
