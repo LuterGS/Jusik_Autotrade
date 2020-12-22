@@ -35,6 +35,16 @@ trade(종목, 개수, 매수금){
 }
 """
 
+
+"""
+프로젝트의 틀이... get_recommend를 다른 별도의 프로그램으로 만들 수 있지 않을까?
+DB에 값이 추가되면, 그 값을 읽어들여오는 형식으로 한다면,
+
+프로그램 A는 계속 돌아가면서 추천 종목들을 Update한 후 DB에 저장하고
+이 프로그램은 DB에서 해당 종목을 가져와 금액을 토대로 얼마나 살 건지 계산 후 구매 및 구매 성공시 DB값을 이동하는 형식으로.
+괜찮은듯...
+"""
+
 if __name__ == "__main__":
     while True:
         if kiwoom_api.get_balance() > constant.min_trade_balance:

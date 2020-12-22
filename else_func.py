@@ -25,3 +25,14 @@ def send_mail():
     """
 
     return 0
+
+
+def write_list_in_file(file_object, content: list):
+    for datas in content:
+        for data in datas:
+            file_object.write(data)
+            file_object.write(", ")
+        file_object.write("\n")
+
+    return file_object
+
