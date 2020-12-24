@@ -1,5 +1,7 @@
 import kiwoom_api
 import constant
+import datetime
+import time
 
 
 def get_yield(ticker: str, buy_price: int):
@@ -35,4 +37,32 @@ def write_list_in_file(file_object, content: list):
         file_object.write("\n")
 
     return file_object
+
+
+def check_maintenance():
+    """
+    키움증권 요청시 점검시간 피하기.
+    점검시간일 때, 혹은 점검시간 직전일 떄 점검시간이 끝날 때까지 Sleep 후, 다시 진행
+    점검시간 : 월~토 05:05~05:10, 일 04:00~04:30
+    :return: True
+
+    """
+    cur_time = datetime.datetime.now()
+    if cur_time.weekday() != 6:     # 평일일 때
+        if cur_time.hour == 5 and cur_time.minute == 4 and cur_time.second > 50: # 점검 코앞이면
+            print("현재시간 : ", cur_time, " 이며, 평일 점검시간 (05:05~05:10)이 다가오므로 점검이 끝날 때까지 대기합니다.")
+            time.sleep(330)
+            print("현재시간 : ", datetime.datetime.now(), " 대기가 끝났습니다. 다시 작업을 재개합니다.")
+        else:
+            pass
+    else:
+        if cur_time.hour == 3 and cur_time.minute == 59 and cur_time.second > 50: # 주말 점검이 코앞이면
+            print("현재시간 : ", cur_time, " 이며, 주말 점검시간 (04:00~04:30)이 다가오므로 점검이 끝날 때까지 대기합니다.")
+            time.sleep(1830)
+            print("현재시간 : ", datetime.datetime.now(), " 대기가 끝났습니다. 다시 작업을 재개합니다.")
+        else:
+            pass
+
+    return True
+
 

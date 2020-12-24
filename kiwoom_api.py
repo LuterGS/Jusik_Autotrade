@@ -1,7 +1,8 @@
 import sys
 import os
 import time
-import csv
+import datetime
+from collections import deque
 from PyQt5.QtCore import QEventLoop
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -19,18 +20,25 @@ import else_func
 밑의 클래스 TextKiwoom을 이용하면, 클래스 내 메소드들만 호출하는 방식으로 원하는 값을 얻을 수 있다.
 기존의 OpenAPI는 이벤트 핸들러 방식이라 원하는 값 하나를 얻기 위해서 여러 코드를 직접 선언해줘야 했지만, 
 해당 클래스를 이용하면 구현된 함수만 호출하면 원하는 값을 return 해준다.
+
++ 키움증권의 API 요청은 시간당 1000회다. 즉, 한 요청당 3.6초를 해야 한다는 뜻이다. 이걸 Queue로 처리한다.
+
+*주의사항
+1. 점검시간에는 접속이 안됨. -> 월~토 05:05~05:10, 일 04:00~04:30
 """
 
 FILEPATH = os.path.dirname(__file__)
 
 
 class TextKiwoom(QAxWidget):
-    FUNC_SET_INPUT_VALUE = "SetInputValue(QString, QString)"
-    FUNC_REQUEST_COMM_DATA = "CommRqData(QString, QString, int, QString)"
-    FUNC_GET_COMM_DATA = "GetCommData(QString, QString, int, QString)"
-    FUNC_GET_REPEAT_DATA_LEN = "GetRepeatCnt(QString, QString)"
-    FUNC_GET_MARKET_CODELIST = "GetCodeListByMarket(QString)"
-    FUNC_GET_KOREAN_NAME = "GetMasterCodeName(QString)"
+    FUNC_LOGIN = ["CommConnect()", False]
+    FUNC_SET_INPUT_VALUE = ["SetInputValue(QString, QString)", False]
+    FUNC_REQUEST_COMM_DATA = ["CommRqData(QString, QString, int, QString)", True]
+    FUNC_GET_LOGIN_INFO = ["GetLoginInfo(QString)", False]
+    FUNC_GET_COMM_DATA = ["GetCommData(QString, QString, int, QString)", False]
+    FUNC_GET_REPEAT_DATA_LEN = ["GetRepeatCnt(QString, QString)", False]
+    FUNC_GET_MARKET_CODELIST = ["GetCodeListByMarket(QString)", False]
+    FUNC_GET_KOREAN_NAME = ["GetMasterCodeName(QString)", False]
     TRANS_SHOWBALANCE = "opw00004"
     TRANS_GETMINDATA = "opt10080"
     received_data = []
@@ -38,6 +46,8 @@ class TextKiwoom(QAxWidget):
 
     def __init__(self):
         super().__init__()
+        # dynamicCall이 3.6초에 한번씩 진행하도록 자동조정
+        self._cur_time = datetime.datetime.now()
 
         # set OCX and login Handler
         self.setControl("KHOPENAPI.KHOpenAPICtrl.1")
@@ -45,17 +55,34 @@ class TextKiwoom(QAxWidget):
         self.OnReceiveTrData.connect(self._receive_tran)
         self._login()
 
+
     def _login(self):
-        self.dynamicCall("CommConnect()")
+        self._dynamicCall(self.FUNC_LOGIN)
         self.login_event_loop = QEventLoop()
         self.login_event_loop.exec_()
 
     def _login_handler(self, message):
         if message == 0:
-            print("키움증권 서버 로그인 성공")
+            print(str(datetime.datetime.now()) + "  키움증권 서버 로그인 성공")
         else:
-            print("키움증권 서버 로그인 실패, err:", message)
+            print(str(datetime.datetime.now()) + "  키움증권 서버 로그인 실패, err:", message)
         self.login_event_loop.exit()
+
+    def _dynamicCall(self, p_str, *args):
+        """
+        키움증권 API요청이 시간당 1000회고, 아닐 경우에는 초당 5초여서 해당 부분을 반영함
+        :param p_str: constant가 들어오며, constant의 두 번째 필드값은 대기해야할지를 알려줌 (대기해야할경우 True, 아니면 False)
+        :param args: dynamicCall의 원래 args
+        :return: 원래의 dynamicCall 함수 원형
+        """
+        else_func.check_maintenance()
+        if p_str[1]:
+            while True:
+                timediff = datetime.datetime.now() - self._cur_time
+                elapsed_time = timediff.seconds + (timediff.microseconds/1000000)
+                if elapsed_time > 3.6:
+                    break
+        return self.dynamicCall(p_str[0], *args)
 
     def _send_tran(self, user_trans_name, trans_name, prev_next, screen_no="0101"):
         """
@@ -67,7 +94,7 @@ class TextKiwoom(QAxWidget):
         :param screen_no: 화면번호 (default로 0101로 설정되어있기 때문에, 그렇게 따라감)
         :return: commRqData에 의한 TR 전송 후의 return값
         """
-        result = self.dynamicCall(self.FUNC_REQUEST_COMM_DATA, user_trans_name, trans_name, prev_next, screen_no)
+        self._dynamicCall(self.FUNC_REQUEST_COMM_DATA, user_trans_name, trans_name, prev_next, screen_no)
         self.loop1 = QEventLoop()
         self.loop1.exec_()
         while True:
@@ -89,25 +116,27 @@ class TextKiwoom(QAxWidget):
         :return: 해당 명세에 따른 반환값
         """
         # print("receive tran : ", screen_no, user_trans_name, trans_name, record_name)
+        # Tran의 종류에 따라서 처리를 다르게 해줘야 함
         if user_trans_name == "계좌평가현황요청":
-            acc_name = self.dynamicCall(self.FUNC_GET_COMM_DATA, trans_name, user_trans_name, 0, "계좌명")
-            balance = self.dynamicCall(self.FUNC_GET_COMM_DATA, trans_name, user_trans_name, 0, "예수금")
+            acc_name = self._dynamicCall(self.FUNC_GET_COMM_DATA, trans_name, user_trans_name, 0, "계좌명")
+            balance = self._dynamicCall(self.FUNC_GET_COMM_DATA, trans_name, user_trans_name, 0, "예수금")
             self.received_data.append([user_trans_name, acc_name, balance])
             self.received = True
         if user_trans_name == "주식분봉차트조회요청":
-            data_length = self.dynamicCall(self.FUNC_GET_REPEAT_DATA_LEN, trans_name, user_trans_name)
+            data_length = self._dynamicCall(self.FUNC_GET_REPEAT_DATA_LEN, trans_name, user_trans_name)
             # print("주식분봉차트조회요청 데이터량 : ", data_length)
             for i in range(data_length):
-                timestamp = self.dynamicCall(self.FUNC_GET_COMM_DATA, trans_name, user_trans_name, i, "체결시간")
-                price = self.dynamicCall(self.FUNC_GET_COMM_DATA, trans_name, user_trans_name, i, "현재가")
-                amount = self.dynamicCall(self.FUNC_GET_COMM_DATA, trans_name, user_trans_name, i, "거래량")
+                timestamp = self._dynamicCall(self.FUNC_GET_COMM_DATA, trans_name, user_trans_name, i, "체결시간")
+                price = self._dynamicCall(self.FUNC_GET_COMM_DATA, trans_name, user_trans_name, i, "현재가")
+                amount = self._dynamicCall(self.FUNC_GET_COMM_DATA, trans_name, user_trans_name, i, "거래량")
                 self.received_data.append([timestamp, price, amount])
             self.received = True
 
         self.loop1.exit()
 
     def get_account_num(self):
-        account_num = self.dynamicCall("GetLoginInfo(QString)", ["ACCNO"])
+        account_num = self._dynamicCall(self.FUNC_GET_LOGIN_INFO, ["ACCNO"])
+        print(account_num)
         return str(account_num).replace(";", "")
 
     def get_balance(self, account_num):
@@ -120,15 +149,16 @@ class TextKiwoom(QAxWidget):
         # KOAStudio 참고
         # 4개의 요청한 입력을 넣음
         # 1. 보유계좌번호
-        self.dynamicCall(self.FUNC_SET_INPUT_VALUE, "계좌번호", account_num)
+        self._dynamicCall(self.FUNC_SET_INPUT_VALUE, "계좌번호", account_num)
         # 2. 비밀번호 (공백)
-        self.dynamicCall(self.FUNC_SET_INPUT_VALUE, "비밀번호", "")
+        self._dynamicCall(self.FUNC_SET_INPUT_VALUE, "비밀번호", "")
         # 3. 상장폐지조회구분. 상장폐지된 주식 포함시 0, 아닐시 1
-        self.dynamicCall(self.FUNC_SET_INPUT_VALUE, "상장폐지조회구분", "0")
+        self._dynamicCall(self.FUNC_SET_INPUT_VALUE, "상장폐지조회구분", "0")
         # 4. 비밀번호입력매체구분=00
-        self.dynamicCall(self.FUNC_SET_INPUT_VALUE, "비밀번호입력매체구분", "00")
+        self._dynamicCall(self.FUNC_SET_INPUT_VALUE, "비밀번호입력매체구분", "00")
 
         result = self._send_tran("계좌평가현황요청", self.TRANS_SHOWBALANCE, 0, "0001")[0]
+        print(result)
         # Warning!
         # 여기서 에러가 날 수 있음 (비밀번호 확인 관련)
         # 이럴 때는 KOAStudio에서 OpenAPI 접속후 우하단 위젯 우클릿 -> 계좌비밀번호 저장 들어가서
@@ -140,11 +170,15 @@ class TextKiwoom(QAxWidget):
         코스피 주식들을 가져와 "종목코드"_"종목이롬".txt로 저장함
         :return: 성공시 True
         """
-        kospi_jusik = self.dynamicCall(self.FUNC_GET_MARKET_CODELIST, "0").split(";")
+        kospi_jusik = self._dynamicCall(self.FUNC_GET_MARKET_CODELIST, "0").split(";")
+
+        while kospi_jusik[0] != "000270":  # 현재 001880 하다가 멈춤
+            del kospi_jusik[0]
+        print(kospi_jusik[0])
+
         for code in kospi_jusik:
             self.get_min_jusik_data(code)
         return kospi_jusik
-
 
     def get_min_jusik_data(self, ticker: str, save_folder=FILEPATH + "\\data\\min\\"):
         """
@@ -154,7 +188,7 @@ class TextKiwoom(QAxWidget):
         :param save_folder: 주식의 데이터를 저장하려는 폴더, 데이터는 종목코드_종목이름.txt로 저장됨
         :return: 성공, 실패값 (bool)
         """
-        korean_name = self.dynamicCall(self.FUNC_GET_KOREAN_NAME, ticker)
+        korean_name = self._dynamicCall(self.FUNC_GET_KOREAN_NAME, ticker)
         print(ticker + "_" + korean_name + ".txt 진행 중", end="")
         save_file = open(save_folder + ticker + "_" + korean_name + ".txt", "w", encoding="utf8")
         save_file.write("거래시간, 거래가격, 거래량\n")
@@ -164,16 +198,16 @@ class TextKiwoom(QAxWidget):
         # 1. 종목코드 - 전문을 조회할 종목코드
         # 2. 틱범위 - 각 데이터의 간격 (분단위), 분 단위로 받아올 것이기 때문에 1로 설정
         # 3. 수정주가구분 - 수정주가를 구분할 것인지, 일단 0으로 받아오자.
-        self.dynamicCall(self.FUNC_SET_INPUT_VALUE, "종목코드", ticker)
-        self.dynamicCall(self.FUNC_SET_INPUT_VALUE, "틱범위", "1")
-        self.dynamicCall(self.FUNC_SET_INPUT_VALUE, "수정주가구분", "0")
+        self._dynamicCall(self.FUNC_SET_INPUT_VALUE, "종목코드", ticker)
+        self._dynamicCall(self.FUNC_SET_INPUT_VALUE, "틱범위", "1")
+        self._dynamicCall(self.FUNC_SET_INPUT_VALUE, "수정주가구분", "0")
         save_file = else_func.write_list_in_file(save_file, self._send_tran("주식분봉차트조회요청", self.TRANS_GETMINDATA, 0))
         for i in range(145):
             time.sleep(3.8)
             print(".", end="")
-            self.dynamicCall(self.FUNC_SET_INPUT_VALUE, "종목코드", ticker)
-            self.dynamicCall(self.FUNC_SET_INPUT_VALUE, "틱범위", "1")
-            self.dynamicCall(self.FUNC_SET_INPUT_VALUE, "수정주가구분", "0")
+            self._dynamicCall(self.FUNC_SET_INPUT_VALUE, "종목코드", ticker)
+            self._dynamicCall(self.FUNC_SET_INPUT_VALUE, "틱범위", "1")
+            self._dynamicCall(self.FUNC_SET_INPUT_VALUE, "수정주가구분", "0")
             save_file = else_func.write_list_in_file(save_file, self._send_tran("주식분봉차트조회요청", self.TRANS_GETMINDATA, 2))
         print(" ")
         save_file.close()
