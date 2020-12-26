@@ -49,9 +49,9 @@ def check_maintenance():
     """
     cur_time = datetime.datetime.now()
     if cur_time.weekday() != 6:     # 평일일 때
-        if cur_time.hour == 5 and cur_time.minute == 4 and cur_time.second > 50: # 점검 코앞이면
+        if cur_time.hour == 5 and cur_time.minute == 4 and cur_time.second > 45: # 점검 코앞이면
             print("현재시간 : ", cur_time, " 이며, 평일 점검시간 (05:05~05:10)이 다가오므로 점검이 끝날 때까지 대기합니다.")
-            time.sleep(330)
+            time.sleep(360)
             print("현재시간 : ", datetime.datetime.now(), " 대기가 끝났습니다. 다시 작업을 재개합니다.")
         else:
             pass
