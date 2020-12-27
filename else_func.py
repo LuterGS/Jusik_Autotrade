@@ -1,7 +1,29 @@
-import kiwoom_api
 import constant
 import datetime
 import time
+from threading import Thread
+
+class ThreadwithReturn(Thread):
+    def __init__(self, group=None, target=None, name=None, args=(), kwargs={}):
+        Thread.__init__(self, group, target, name, args, kwargs)
+        self._return = None
+
+    def run(self):
+        if self._target is not None:
+            self._return = self._target(*self._args, **self._kwargs)
+
+    def join(self, *args):
+        Thread.join(self, *args)
+        return self._return
+
+
+def array_to_byte(str_list: list):
+    result = b''
+    for str_ in str_list:
+        result += str_.encode()
+        result += b'|'          # add seperator
+    print(result)
+    return result
 
 
 def get_yield(ticker: str, buy_price: int):
@@ -14,7 +36,7 @@ def get_yield(ticker: str, buy_price: int):
     expected_percent = constant.profit_percent * 0.01
 
     while True:
-        cur_price = kiwoom_api.get_stock_price(ticker, True)
+        cur_price = 1#kiwoom_api.get_stock_price(ticker, True)
         profit_percent = cur_price - buy_price
         if abs(profit_percent) >= expected_percent:
             return True

@@ -1,4 +1,7 @@
+import os
 
+_PATH = os.path.dirname(os.path.abspath(__file__)) + "/"
+print(_PATH)
 
 """
 거래 최소금액을 의미, 이 금액 이상이어야만 해당 금액을 가지고 주식거래 함
@@ -20,11 +23,16 @@ BUY_WAIT_TIME = 15
 
 
 """
-비동기 큐를 위한 RabbitMQ의 URL/PORT/VHOST/CREDENTIAL/QUEUE 설정
+비동기 큐를 위한 RabbitMQ의 URL/PORT/VHOST/CREDENTIAL/QUEUE 설정 - 비밀번호 등을 파일에서 읽어들여와 Return하는 함수 만듦 (코드에서 공개하지 않음)
 """
-MQ_URL = 'localhost'
-MQ_PORT = 5672
-MQ_VHOST = 'kiwoom'
-MQ_ID, MQ_PW = 'guest', 'guest'
-MQ_QUEUE = 'kiwoom_queue'
+def GET_MQ_VALUE():
+    return_val = {}
+    with open(_PATH + "MQ_VALUE.txt", "r", encoding="utf8") as mqfile:
+        for line in mqfile:
+            line = line.replace("\n", "").split("=")
+            return_val[line[0]] = line[1]
+    return return_val
 
+
+if __name__ == "__main__":
+    GET_MQ_VALUE()
