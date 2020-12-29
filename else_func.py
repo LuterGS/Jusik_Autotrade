@@ -17,6 +17,42 @@ class ThreadwithReturn(Thread):
         return self._return
 
 
+def byte_to_original(result_value: bytes, request_num):
+    # 바이트로 된 결과값을 일단 디코딩함 (string으로)
+
+    return_value = result_value.replace(b'\x00', b'').decode()
+    print(return_value)
+    if request_num == 0:        # 잔액요청일 때
+        return int(return_value)
+    elif request_num == 1:      # 거래량급증요청일 때
+        return_value = result_value.decode().split("/")
+        return_value.pop()
+
+        for i in range(len(return_value)):
+            return_value[i] = return_value[i].split(",")
+            return_value[i][2] = int(return_value[i][2])
+        print("retrval : ", return_value)
+        return return_value
+    elif request_num == 2 or request_num == 3:      # 주식판매 / 주식구매일 때
+        return int(return_value)
+    elif request_num == 4:      # 수익률요청일 때
+        return_value = result_value.decode().split("/")
+        return_value.pop()
+
+        for i in range(len(return_value)):
+            return_value[i] = return_value[i].split(",")
+            return_value[i][2] = float(return_value[i][2])
+        print("수익률 리스트 : ", return_value)
+        return return_value
+
+
+
+
+
+
+
+
+
 def array_to_byte(str_list: list):
     result = b''
     for str_ in str_list:

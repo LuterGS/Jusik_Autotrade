@@ -1,8 +1,6 @@
-import kiwoom_api
-import core_func
-import constant
-import asyncio
-import threading
+import time
+import datetime
+from danta_trader import DantaTrader
 
 """
 어떻게 프로그램을 짤 것이냐?
@@ -46,9 +44,16 @@ DB에 값이 추가되면, 그 값을 읽어들여오는 형식으로 한다면,
 """
 
 if __name__ == "__main__":
+    trader = DantaTrader()
     while True:
-        if kiwoom_api.get_balance() > constant.min_trade_balance:
-            ticker, amount = core_func.get_recommend()
+        cur_time = datetime.datetime.now()
+        if cur_time.hour != 9:
+            print("트레이딩은 9시 30분부터 시작합니다! 30분동안 잠듭니다.")
+            time.sleep(1800)
+        else:
+            if trader.get_recommend():
+                trader.buy()
+            else:
+                time.sleep(60)
+                print(str(datetime.datetime.now()) + " 9시 30분에 시작합니다")
 
-            thread = threading.Thread(target=core_func.trade, args=[ticker, amount])
-            thread.start()
