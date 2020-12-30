@@ -21,7 +21,7 @@ def byte_to_original(result_value: bytes, request_num):
     # 바이트로 된 결과값을 일단 디코딩함 (string으로)
 
     return_value = result_value.replace(b'\x00', b'').decode()
-    print(return_value)
+    # print(return_value)
     if request_num == 0:        # 잔액요청일 때
         return int(return_value)
     elif request_num == 1:      # 거래량급증요청일 때
@@ -31,22 +31,30 @@ def byte_to_original(result_value: bytes, request_num):
         for i in range(len(return_value)):
             return_value[i] = return_value[i].split(",")
             return_value[i][2] = int(return_value[i][2])
-        print("retrval : ", return_value)
+        # print("retrval : ", return_value)
         return return_value
     elif request_num == 2 or request_num == 3:      # 주식판매 / 주식구매일 때
         return int(return_value)
+
     elif request_num == 4:      # 수익률요청일 때
         return_value = result_value.decode().split("/")
         return_value.pop()
 
         for i in range(len(return_value)):
             return_value[i] = return_value[i].split(",")
-            return_value[i][2] = float(return_value[i][2])
-        print("수익률 리스트 : ", return_value)
+            return_value[i][6] = float(return_value[i][6])
+        # print("수익률 리스트 : ", return_value)
         return return_value
 
 
-
+def get_only_code(datas):
+    """
+    KiwoomHandler.get_profit_percent() 의 결과값에서 종목코드만 추려냄
+    """
+    codes = []
+    for data in datas:
+        codes.append(data[0])
+    return codes
 
 
 
@@ -62,45 +70,10 @@ def array_to_byte(str_list: list):
     return result
 
 
-def get_yield(ticker: str, buy_price: int):
-    """
-    수익률 계산기
-    :param ticker: 수익률을 계산할 종목의 종목코드 (str)
-    :param buy_price: 종목을 구매했을 당시의 가격 (int)
-    :return: constant.py에 정의된 수익률 퍼센트의 이상이거나 이하면 true를 return, 이외는 error
-    """
-    expected_percent = constant.profit_percent * 0.01
-
-    while True:
-        cur_price = 1#kiwoom_api.get_stock_price(ticker, True)
-        profit_percent = cur_price - buy_price
-        if abs(profit_percent) >= expected_percent:
-            return True
-
-
-def send_mail():
-    """
-    수익률 메일 보내기
-    :return:
-    """
-
-    return 0
-
-
-def write_list_in_file(file_object, content: list):
-    for datas in content:
-        for data in datas:
-            file_object.write(data)
-            file_object.write(", ")
-        file_object.write("\n")
-
-    return file_object
-
-
 def check_maintenance():
     """
     키움증권 요청시 점검시간 피하기.
-    점검시간일 때, 혹은 점검시간 직전일 떄 점검시간이 끝날 때까지 Sleep 후, 다시 진행
+    점검시간일 때, 혹은 점검시간 직전일 떄 True를 반환함. 그러면 키움증권을 
     점검시간 : 월~토 05:05~05:10, 일 04:00~04:30
     :return: True
 

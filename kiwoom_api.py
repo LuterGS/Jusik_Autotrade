@@ -14,12 +14,9 @@ def signal_handler(signum, frame):
     print(signum, frame)
 
 
-
-
-
 class KiwoomHandler:
-    
     REQUESTS = ["잔액요청", "거래량급증요청", "주식구매", "주식판매", "수익률요청"]
+
     # 주식구매를 위해선 주식코드, 개수, 가격을 요청해야 한다.
     # self._request_kiwoom에 요청하도록 한다.
 
@@ -33,7 +30,8 @@ class KiwoomHandler:
         self._cred = pika.PlainCredentials(get_mq_val['MQ_ID'], get_mq_val['MQ_PW'])
         self._send_queue = get_mq_val['MQ_OUT_QUEUE']
         self._recv_queue = get_mq_val['MQ_IN_QUEUE']
-        self._connection = pika.BlockingConnection(pika.ConnectionParameters(self._url, self._port, self._vhost, self._cred))
+        self._connection = pika.BlockingConnection(
+            pika.ConnectionParameters(self._url, self._port, self._vhost, self._cred))
         self._channel = self._connection.channel()
 
         # Shared memory를 위한 이름 설정
@@ -54,18 +52,19 @@ class KiwoomHandler:
 
         # 프로세스 생성 및 시작
         channel = self._connect_channel()
-        sub_process = Process(target=KiwoomHandler._request_kiwoom, args=(channel, self._send_queue, self.REQUESTS[req_num], kwargs))
+        sub_process = Process(target=KiwoomHandler._request_kiwoom,
+                              args=(channel, self._send_queue, self.REQUESTS[req_num], kwargs))
         sub_process.start()
 
         # 프로세스 이름을 이용한 고유 이름을 가진 Shared memory를 불러옴
         process_pid = sub_process.pid
         result_mem = shared_memory.SharedMemory(name="kiwoom_" + str(process_pid), create=True, size=5000)
         # print("Process : ", process_pid, " is created")
-        
+
         # 프로세스에게 Shared memory의 접근을 해제하고 프로그램을 종료하라는 시그널을 보냄
         # os.kill(process_pid, signal.SIGUSR2)
         sub_process.join()
-        
+
         # 이후 Shared memory에서 값을 읽어들여온 후 종료함
         result_value = else_func.byte_to_original(bytes(result_mem.buf), req_num)
         result_mem.close()
@@ -78,6 +77,7 @@ class KiwoomHandler:
         def sig(a, b):
             # print("signal handling is called    ", a, b)
             pass
+
         # 시그널 핸들러를 등록하고, 현재 자신의 pid를 불러옴
         signal.signal(signal.SIGUSR1, sig)
         signal.signal(signal.SIGUSR2, sig)
@@ -90,7 +90,7 @@ class KiwoomHandler:
         for i in range(len(kwargs)):
             send_data += kwargs[i].encode() + b','
 
-        print("send_data : ", send_data)
+        # print("send_data : ", send_data)
 
         # Windows에 요청을 보냄
         channel.basic_publish(exchange='', routing_key=send_queue_name, body=send_data)
@@ -124,13 +124,16 @@ class KiwoomHandler:
                 except ProcessLookupError:
                     print(ProcessLookupError)
                 except FileNotFoundError:
-                    print("Already Missed Target")
+                    print("해당 요청은 이미 처리되었습니다.")
+
+    # 이 부분에 있는 메소드들은 클래스 외부에서도 접근이 가능한 Public 메소드들임
+    # 이 부분에 있는 메소드만을 호출함으로써 외부에서 안정적인 호출이 가능하다.
 
     def get_balance(self):
         return self._kiwoom(0)
 
-    def get_highest_trade_amount(self):
-        return self._kiwoom(1)
+    def get_highest_trade_amount(self, last_min=constant.TRADE_LAST_MIN, market=constant.TRADE_MARKET, is_percent=constant.VIEW_AS_PERCENT):
+        return self._kiwoom(1, last_min=str(last_min), market=str(market), is_percent=str(is_percent))
 
     def buy_jusik(self, code, amount, price):
         return self._kiwoom(2, code=str(code), amount=str(amount), price=str(price))
@@ -141,15 +144,19 @@ class KiwoomHandler:
     def get_profit_percent(self):
         return self._kiwoom(4)
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     test = KiwoomHandler()
-    balance = test.get_balance()
-    amount = test.get_highest_trade_amount()
-    buy_result = test.buy_jusik(code=amount[0][0], amount=1, price=amount[0][2])
-    print("get_balance result is : ", test.get_balance())
-    print("거래량급증요청!", amount)
-    print("주식 하나만 사보기!", buy_result)
+    # balance = test.get_balance()
+    # amount = test.get_highest_trade_amount()
+    # buy_result = test.buy_jusik(code=amount[0][0], amount=1, price=amount[0][2])
+    # print("get_balance result is : ", test.get_balance())
+    # print("거래량급증요청!", amount)
+    # print("주식 하나만 사보기!", buy_result)
+    total = test.get_profit_percent()
+    print("len : ", len(total))
+    print(total)
+
 
 
 def buy_stock(ticker: str, amount: int):

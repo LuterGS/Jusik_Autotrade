@@ -1,20 +1,11 @@
+import csv
+from multiprocessing import shared_memory
 
 if __name__ == "__main__":
-    str1 = "werwer, werwerwerwer, erere"
-    str2 = "werwerwer"
+    raw = open("test", "w", encoding='utf8')
+    csvs = csv.writer(raw)
 
-    print(str2.split(","))
+    raw.write("햐 좋네\n")
+    csvs.writerow(["이걸", "테스트", "해보겠습니"])
 
-
-    p1 = 900000
-    p2 = 7850
-
-    print(p1/p2, int(p1/p2))
-
-    lists = [
-        [1, 1000, 2234, "한글"],
-        [2, 23423, 1241, "한글2"],
-        [3, 2341, 1152, "한글3"]
-    ]
-
-    print(lists.index([1, 1000, 2234, "한글"]))
+    test = shared_memory.SharedMemory(name='1234151_sdf', create=False)
