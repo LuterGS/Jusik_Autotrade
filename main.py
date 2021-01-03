@@ -16,8 +16,13 @@ if __name__ == "__main__":
     # 시그널 4개를 다는 것보다, 각 signal handler가 요청될 때마다 다음 함수를 준비해두는게 낫지 않을까?
 
     # 처음 sigwait을 걸어놓고 다음꺼가 실행되는 식으로만 하면 괜찮을거같은데....
+
+    handlers = [signal_handler.sig_a, signal_handler.sig_b, signal_handler.sig_c, signal_handler.sig_d]
+    start_signal = 0
+
     trader_a = DantaTrader()
-    signal.signal(signal.SIGUSR2, signal_handler.sig_a)
+    signal.signal(signal.SIGUSR2, handlers[start_signal])
+    signal_handler.signal_update(start_signal)
 
     while True:
         signal.sigwait([signal.SIGUSR2])        # sig_a를 호출하는 알람
