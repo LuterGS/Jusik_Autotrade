@@ -21,7 +21,7 @@ def sig_a(signum, frame):
     # 단타 알고리즘이 끝나는 때에 alarm이 발생하도록 alarm을 설정한다.
     cur_time = datetime.datetime.now()
     expected_time = datetime.datetime.strptime(
-        cur_time.strftime("%Y%m%d") + str(constant.DANTA_END_HOUR) + str(constant.DANTA_END_MIN),
+        cur_time.strftime("%Y%m%d") + constant.DANTA_END_HOUR + constant.DANTA_END_MIN,
         "%Y%m%d%H%M"
     )
     signal.alarm(int((expected_time - cur_time).total_seconds()))

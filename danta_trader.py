@@ -25,23 +25,24 @@ class DantaTrader(BasicTrader):
         # 클래스를 선언할 때, 시간에 따라 언제의 상황인지를 알아야하지 않을까?
         # 예를 들어, 단타종료시각 이전에 선언되면 알고리즘이 동작해야하고, 이후에 선언하면 다음날 장시간 전까지는 동작하면 안된다.
         # 장시각을 어떻게 알지?
-        self._log_file, self._csv_log = self._init_log()
+        self._init_log()
 
         # 핸들러가 호출되었을 때, 여기에 변화를 주기 위한 무언가를 만든다.
 
     def _init_log(self):
         # 현재 시간을 파악해, 다음날에 작동할 프로세스면 다음날에 해당하는 파일을 생성하도록 함
         cur_time = datetime.datetime.now()
-        if cur_time.hour >= constant.DANTA_END_HOUR:
+        if cur_time.hour >= int(constant.DANTA_END_HOUR):
             cur_time += datetime.timedelta(days=1)
         
         raw_writer = open(_PATH + "log/" + cur_time.strftime("%y%m%d") + "_구매목록.txt", "w", encoding='utf8')
         csv_writer = csv.writer(raw_writer)
 
+        self._log_file, self._csv_log = raw_writer, csv_writer
+
         # 로그 기록 시작
         self._log(["구매 종목코드", "종목이름", "구매개수", "구매가격"])
         self._log("\n\n거래결과")
-        return raw_writer, csv_writer
 
     def _log(self, oneline):
         if type(oneline) == list:
