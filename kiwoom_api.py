@@ -142,8 +142,8 @@ class KiwoomHandler:
     def get_profit_percent(self):
         return self._kiwoom(4)
 
-    def program_restart(self, time: int):
-        self._kiwoom(5, time=str(time))
+    def program_restart(self, time_: int):
+        self._kiwoom(5, time=str(time_))
 
 
 if __name__ == "__main__":
@@ -157,45 +157,3 @@ if __name__ == "__main__":
     total = test.get_profit_percent()
     print("len : ", len(total))
     print(total)
-
-
-
-def buy_stock(ticker: str, amount: int):
-    """
-    :param ticker: 구매하고자 하는 종목코드 (str)
-    :param amount: 구매하고자 하는 주식 개수 (int)
-    :return: 두 개의 값을 return함.
-        1. 총 구매한 금액 (int)
-        2. 함수의 성공, 실패값 (bool)
-    """
-    return 1000, False
-
-
-def sell_stock(ticker: str, amount: int, price: int):
-    """
-    :param ticker: 판매하고자 하는 종목코드 (str)
-    :param amount: 판매하고자 하는 주식 개수 (int)
-    :param price: 판매하고자 하는 주식의 가격 (int)
-    :return: 성공, 실패값 (bool)
-    """
-    return True
-
-
-def get_stock(ticker: str):
-    """
-    :param ticker: 보유개수를 알고자 하는 종목코드 (int)
-    :return: ticker에 해당되는 주식의 보유개수 (int)
-    """
-    return 20
-
-
-def get_stock_price(ticker: str, is_buying: bool):
-    """
-    :param ticker: 가격을 알고자 하는 종목코드 (int)
-    :param is_buying: true일 땐 종목의 매수최고가를, false일 땐 종목의 매도최저가를 return함
-    :return: is_buying에 따른 주식 종목의 가격
-    """
-    if is_buying:
-        return 1000
-    else:
-        return 990
