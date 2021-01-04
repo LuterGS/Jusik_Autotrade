@@ -1,9 +1,7 @@
-import datetime
 import time
 import signal
 import os
-from threading import Thread
-from multiprocessing import Process, shared_memory, Queue
+from multiprocessing import Process, shared_memory
 import pika
 
 import constant
@@ -15,7 +13,7 @@ def signal_handler(signum, frame):
 
 
 class KiwoomHandler:
-    REQUESTS = ["잔액요청", "거래량급증요청", "주식구매", "주식판매", "수익률요청"]
+    REQUESTS = ["잔액요청", "거래량급증요청", "주식구매", "주식판매", "수익률요청", "프로그램재시작"]
 
     # 주식구매를 위해선 주식코드, 개수, 가격을 요청해야 한다.
     # self._request_kiwoom에 요청하도록 한다.
@@ -143,6 +141,9 @@ class KiwoomHandler:
 
     def get_profit_percent(self):
         return self._kiwoom(4)
+
+    def program_restart(self, time: int):
+        self._kiwoom(5, time=str(time))
 
 
 if __name__ == "__main__":

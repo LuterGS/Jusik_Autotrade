@@ -57,6 +57,21 @@ def get_only_code(datas):
     return codes
 
 
+def get_today():
+    return datetime.datetime.now().strftime("%Y%m%d")
+
+
+def get_hm():
+    return datetime.datetime.now().strftime("%H%M")
+
+
+def get_timediff(time_str1, time_str2):
+    # 두 시간의 차를 초단위로 변환, 대신 time_str2가 더 나중 시각임
+    time1 = datetime.datetime.strptime(time_str1, "%H%M")
+    time2 = datetime.datetime.strptime(time_str2, "%H%M")
+    return int((time2 - time1).total_seconds())
+
+
 
 
 

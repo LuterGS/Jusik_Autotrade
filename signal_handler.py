@@ -4,49 +4,47 @@ import time
 from multiprocessing import shared_memory
 
 import constant
+import else_func
+
+_SIG_A_INIT_TIME = "09" + constant.TRADE_LAST_MIN
+_SIG_B_INIT_TIME = "1200"
+_SIG_C_INIT_TIME = "1519"
+_SIG_D_INIT_TIME = "0355"
 
 
-def signal_update(cur_num):
-    if cur_num == 3:
+def set_alarm():
+
+    cur_time = else_func.get_hm()
+    if int(cur_time) < int(_SIG_D_INIT_TIME):   # 현재 시간이 00:00~03:54일 때 - sig_d 핸들러를 호출하게끔 설정해야 한다.
+        signal.alarm(else_func.get_timediff(cur_time, _SIG_D_INIT_TIME))
         return 0
-    else:
-        cur_num += 1
-        return cur_num
+    elif int(cur_time) < int(_SIG_A_INIT_TIME): # 현재 시간이 03:55~09:xx(설정시) 일 때 - sig_a 핸들러를 호출하게끔 설정해아 한다.
+        signal.alarm(else_func.get_timediff(cur_time, _SIG_A_INIT_TIME))
+        return 1
+    elif int(cur_time) < int(_SIG_B_INIT_TIME): # 현재 시간이 09:xx~12:00 일 때 - sig_b 핸들러를 호출하게끔 설정해아 한다.
+        signal.alarm(else_func.get_timediff(cur_time, _SIG_B_INIT_TIME))
+        signal.signal(signal.SIGALRM, sig_b)
+        return 2
+    elif int(cur_time) < int(_SIG_C_INIT_TIME): # 현재 시간이 12:00~15:19 일 때 - sig_c 핸들러를 호출하게끔 설정해야 한다.
+        signal.alarm(else_func.get_timediff(cur_time, _SIG_C_INIT_TIME))
+        return 3
+    else:                                       # 현재 시간이 15:20~24:00 일 때 - sig_d 핸들러를 호출하게끔 설정해야 한다.
+        signal.alarm(else_func.get_timediff(cur_time, _SIG_D_INIT_TIME))
+        return 0
 
 
 def sig_a(signum, frame):
     # 단타 알고리즘이 시작될 때 발생하는 시그널 핸들러
-    # 이 시그널에서 단타 알고리즘을 실행시킴과 동시에 sig_b가 실행될 수 있도록 timer를 setting해줘야 한다.
-
-    # 단타 알고리즘이 끝나는 때에 alarm이 발생하도록 alarm을 설정한다.
-    cur_time = datetime.datetime.now()
-    expected_time = datetime.datetime.strptime(
-        cur_time.strftime("%Y%m%d") + constant.DANTA_END_HOUR + constant.DANTA_END_MIN,
-        "%Y%m%d%H%M"
-    )
-    signal.alarm(int((expected_time - cur_time).total_seconds()))
-
-    # signal handler를 교체한다.
-    signal.signal(signal.SIGUSR2, sig_b)
-    print("점검시간을 대비, 5시 15분까지 프로그램을 대기시킵니다.")
-    time.sleep(4800)
-    # 점검시간이 종료될 때까지 sleep한다.
-
+    # 얘가 일단 뭔가 해야할 일은 없다.
+    print("이제 단타 알고리즘을 시작합니다.")
 
 
 def sig_b(signum, frame):
     # 단타가 종료되고 AI 알고리즘이 돌아가는 시점을 알려주는 핸들러
     # 이 시그널이 발생하면 단타 알고리즘이 종료되고, AI 알고리즘이 실행된다.
 
-    # 이 다음에 울릴, 장마감 시간을 파악한다.
-    cur_time = datetime.datetime.now()
-    expected_time = datetime.datetime.strptime(
-        cur_time.strftime("%Y%m%d") + "1519", "%Y%m%d%H%M"
-    )
-    signal.alarm(int((expected_time - cur_time).total_seconds()))
-
-    # signal handler를 교체한다.
-    signal.signal(signal.SIGUSR2, sig_c)
+    # 단타 알고리즘은 DantaTrader.buy() 에서 계속 돌아가고 있음
+    # 얘를 종료해주기 위해 shared memory를 생성한다.
 
     # 이 Shared memory를 생성하면, 단타 알고리즘에서 감지 후 단타 알고리즘이 멈추게 된다.
     checker = shared_memory.SharedMemory(name=constant.SIGNAL_B, create=True, size=10)
@@ -55,31 +53,17 @@ def sig_b(signum, frame):
 def sig_c(signum, frame):
     # 장 종료를 알리는 핸들러
     # 이 시그널이 발생하면, AI 알고리즘을 종료하고 다른 로직을 실행한다.
-
-    # 이 다음에 울릴, 점검시간 (03:55~5:15) 을 파악한다.
-    cur_time = datetime.datetime.now() + datetime.timedelta(days=1)
-    expected_time = datetime.datetime.strptime(
-        cur_time.strftime("%Y%m%d") + "0355", "%Y%m%d%H%M"
-    )
-    signal.alarm(int((expected_time - cur_time).total_seconds()))
-
-    # signal handler를 교체한다.
-    signal.signal(signal.SIGUSR2, sig_d)
+    # 일단 할 게 없으므로 냅둔다.
+    print("이제 장이 종료되었습니다")
 
 
 def sig_d(signum, frame):
     # 점검시간을 알리는 핸들러
-    # 이 시그널이 발생하면, 점검시간동안 대기한 아후 다음 장 시작에 sig_a가 호출되도록 바꾼다.
+    # 이 시그널이 발생하면, 점검시간을 피해가도록 일정 시간 쉰다.
+    # 현재는 03시 55분부터 05시 15분까지, 총 80분을 쉰다.
 
-    # 이 다음에 울릴, 장 시작 시간을 파악한다.
-    cur_time = datetime.datetime.now()
-    expected_time = datetime.datetime.strptime(
-        cur_time.strftime("%Y%m%d") + "09" + constant.TRADE_LAST_MIN, "%Y%m%d%H%M"
-    )
-    signal.alarm(int((expected_time - cur_time).total_seconds()))
-
-    # signal handler를 교체한다.
-    signal.signal(signal.SIGUSR2, sig_a)
+    print("점검시간을 대비, 80분을 쉽니다.")
+    time.sleep(4800)
 
 
 

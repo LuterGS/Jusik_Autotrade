@@ -35,7 +35,7 @@ class DantaTrader(BasicTrader):
         if cur_time.hour >= int(constant.DANTA_END_HOUR):
             cur_time += datetime.timedelta(days=1)
         
-        raw_writer = open(_PATH + "log/" + cur_time.strftime("%y%m%d") + "_구매목록.txt", "w", encoding='utf8')
+        raw_writer = open(_PATH + "log/" + cur_time.strftime("%y%m%d") + "_구매목록.txt", "a", encoding='utf8')
         csv_writer = csv.writer(raw_writer)
 
         self._log_file, self._csv_log = raw_writer, csv_writer
@@ -48,19 +48,21 @@ class DantaTrader(BasicTrader):
         if type(oneline) == list:
             self._csv_log.writerow(oneline)
         else:  # if type is string:
-            self._log_file.write(oneline + "\n")
+            self._log_file.write(str(oneline) + "\n")
 
     def _sell_jusik(self, sell_detail):
+        print(sell_detail)
         # KiwoomHandler.sell_jusik의 Wrapper. 로그 남기기 및 화면 출력까지 포함한다.
         self._kiwoom.sell_jusik(sell_detail[0], sell_detail[2], sell_detail[7])
-        result = "종목 : " + sell_detail[0] + "    수익률 : " + str(sell_detail[6]) + "    수익금액 : " + str(sell_detail[5])
+        result = "종목 : " + sell_detail[1] + "(" + sell_detail[0] + ")    수익률 : " + str(sell_detail[6]) + "    수익금액 : " + str(sell_detail[5])
         print(result)  # 프린트로 로그 찍고
         self._log(result)  # 구매 로그도 찍음
 
     def _buy_jusik(self, buy_detail):
         # KiwoomHandler.buy_jusik의 Wrapper. 로그 남기기 및 화면 출려까지 포함한다.
-        self._kiwoom.buy_jusik(buy_detail[0], buy_detail[1], buy_detail[2])
-        result = "종목 : " + buy_detail[0], "  구매가격 : " + buy_detail[1] + "    구매양 : " + str(buy_detail[2])
+        print(buy_detail)
+        self._kiwoom.buy_jusik(buy_detail[0], buy_detail[2], buy_detail[3])
+        result = "종목 : " + buy_detail[1], "  구매가격 : " + str(buy_detail[2]) + "    구매양 : " + str(buy_detail[3])
         print(result)
         self._log(result)
 
@@ -79,9 +81,11 @@ class DantaTrader(BasicTrader):
         # 구매에 대한 Tracking
         while True:
             cur_jusik_data = self._kiwoom.get_profit_percent()
+            # print("1", cur_jusik_data)
 
             # 일단, 만약 매도로 인한 현재 종목수가 부족할 때
             if len(cur_jusik_data) < constant.TOTAL_JONGMOK_NUM:
+                # print("im in!")
                 new_recommended = self._get_recommend(one_mungchi, selection)  # 추천종목 받아옴
                 recommended_code = else_func.get_only_code(new_recommended)  # 값 비교를 위해 리스트만 떼옴
                 current_code = else_func.get_only_code(cur_jusik_data)
@@ -96,8 +100,10 @@ class DantaTrader(BasicTrader):
                 cur_jusik_data = self._kiwoom.get_profit_percent()  # 다시 Renewel
 
             # 거래 비교 시작
+            # print("2", cur_jusik_data)
             for jusik_data in cur_jusik_data:
-                if jusik_data[6] > constant.MAX_PROFIT_PERCENT or jusik_data[6] < constant.MAX_LOSS_PERCENT:  # 만약 손익분기를 넘기면
+                # print(jusik_data[6], constant.MAX_LOSS_PERCENT, constant.MAX_PROFIT_PERCENT)
+                if jusik_data[6] > constant.MAX_PROFIT_PERCENT or jusik_data[6] < -1 * constant.MAX_LOSS_PERCENT:  # 만약 손익분기를 넘기면
                     self._sell_jusik(jusik_data)  # 주식 판매
 
             # 시그널 핸들링
@@ -115,6 +121,7 @@ class DantaTrader(BasicTrader):
                 self._log_file.close()
                 checker.close()
                 checker.unlink()
+                del self._kiwoom
                 break
             except FileNotFoundError:
                 pass
