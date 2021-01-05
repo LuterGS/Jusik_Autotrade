@@ -5,6 +5,7 @@ from multiprocessing import shared_memory
 
 import constant
 import else_func
+from kiwoom_api import KiwoomHandler
 
 _SIG_A_INIT_TIME = "09" + constant.TRADE_LAST_MIN
 _SIG_B_INIT_TIME = constant.DANTA_END_HOUR + constant.DANTA_END_MIN
@@ -21,8 +22,12 @@ def set_alarm():
         signal.alarm(else_func.get_timediff(cur_time, _SIG_D_INIT_TIME))
         signal.signal(signal.SIGALRM, sig_d)
         return 0
-    elif int(cur_time) < int(_END_MAINTENANCE):   # 현재 시간이 점검 시간일 때 - 그냥 자고 1을 return함.
-        time.sleep(else_func.get_timediff(cur_time, _END_MAINTENANCE))
+    elif int(cur_time) < int(_END_MAINTENANCE):   # 현재 시간이 점검 시간일 때
+        # 먼저 켜져있는 Windows에 sleep명령 보냄
+        windows = KiwoomHandler()
+        timediff = else_func.get_timediff(cur_time, _END_MAINTENANCE)
+        windows.program_restart(timediff)
+        time.sleep(timediff)
         return 1
     elif int(cur_time) < int(_SIG_A_INIT_TIME): # 현재 시간이 03:55~09:xx(설정시) 일 때 - sig_a 핸들러를 호출하게끔 설정해아 한다.
         signal.alarm(else_func.get_timediff(cur_time, _SIG_A_INIT_TIME))
@@ -37,7 +42,7 @@ def set_alarm():
         signal.signal(signal.SIGALRM, sig_c)
         return 3
     else:                                       # 현재 시간이 15:20~24:00 일 때 - sig_d 핸들러를 호출하게끔 설정해야 한다.
-        signal.alarm(else_func.get_timediff(cur_time, _SIG_D_INIT_TIME))
+        signal.alarm(else_func.get_timediff(cur_time, _SIG_D_INIT_TIME, True))
         signal.signal(signal.SIGALRM, sig_d)
         return 0
 

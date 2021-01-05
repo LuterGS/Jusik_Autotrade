@@ -1,11 +1,8 @@
-import csv
-from multiprocessing import shared_memory
+import else_func
+import datetime
 
 if __name__ == "__main__":
-    raw = open("test", "w", encoding='utf8')
-    csvs = csv.writer(raw)
+    test2 = datetime.datetime.strptime("2355", "%H%M")
+    test1 = datetime.datetime.strptime("0355", "%H%M") + datetime.timedelta(days=1)
 
-    raw.write("햐 좋네\n")
-    csvs.writerow(["이걸", "테스트", "해보겠습니"])
-
-    test = shared_memory.SharedMemory(name='1234151_sdf', create=False)
+    print(int((test1 -test2).total_seconds()))

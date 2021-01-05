@@ -69,10 +69,14 @@ def get_hm():
     return datetime.datetime.now().strftime("%H%M")
 
 
-def get_timediff(time_str1, time_str2):
+def get_timediff(time_str1, time_str2, reverse=False):
     # 두 시간의 차를 초단위로 변환, 대신 time_str2가 더 나중 시각임
     time1 = datetime.datetime.strptime(time_str1, "%H%M")
     time2 = datetime.datetime.strptime(time_str2, "%H%M")
+
+    if reverse:
+        time2 = time2 + datetime.timedelta(days=1)
+
     return int((time2 - time1).total_seconds())
 
 
