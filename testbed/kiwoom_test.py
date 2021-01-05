@@ -1,12 +1,6 @@
-import signal
-
-def a_(a, b):
-    print("a is called")
 
 
-
-
-
-if __name__ == "_main__":
-
-    signal.signal(signal.SIGUSR2, a_)
+if __name__ == "__main__":
+    test = {"test1":"a", "test2":"b"}
+    print(str(test))
+    print(type(str(test)))

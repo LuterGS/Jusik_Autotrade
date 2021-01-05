@@ -29,7 +29,7 @@ class DantaTrader(BasicTrader):
         self._init_log()
         print("initlog complete")
 
-        # 핸들러가 호출되었을 때, 여기에 변화를 주기 위한 무언가를 만든다.
+        self._profit = 0
 
     def _init_log(self):
         # 현재 시간을 파악해, 다음날에 작동할 프로세스면 다음날에 해당하는 파일을 생성하도록 함
@@ -56,16 +56,19 @@ class DantaTrader(BasicTrader):
         # print(sell_detail)
         # KiwoomHandler.sell_jusik의 Wrapper. 로그 남기기 및 화면 출력까지 포함한다.
         self._kiwoom.sell_jusik(sell_detail[0], sell_detail[2], sell_detail[7])
-        result = "종목 : " + sell_detail[1] + "(" + sell_detail[0] + ")    수익률 : " + str(sell_detail[6]) + "    수익금액 : " + str(sell_detail[5])
+        result = "종목 : " + sell_detail[1] + "(" + sell_detail[0] + ")               수익률 : " + str(sell_detail[6]) + "    수익금액 : " + str(sell_detail[5])
         # 수익금액은 말그대로 손실액수...가 아니네?
         print(result)  # 프린트로 로그 찍고
         self._log(result)  # 구매 로그도 찍음
+
+        # 총 수익금 업데이트
+        self._profit += int(sell_detail[5])
 
     def _buy_jusik(self, buy_detail):
         # KiwoomHandler.buy_jusik의 Wrapper. 로그 남기기 및 화면 출려까지 포함한다.
         # print(buy_detail)
         self._kiwoom.buy_jusik(buy_detail[0], buy_detail[2], buy_detail[3])
-        result = "종목 : " + buy_detail[1], "  구매가격 : " + str(buy_detail[3]) + "    구매양 : " + str(buy_detail[2]) + "  총구매가격 : " + str(buy_detail[2] * buy_detail[3])
+        result = "종목 : " + buy_detail[1] + "                구매가격 : " + str(buy_detail[3]) + "    구매양 : " + str(buy_detail[2]) + "  총구매가격 : " + str(buy_detail[2] * buy_detail[3])
         print(result)
         self._log(result)
 
@@ -118,7 +121,7 @@ class DantaTrader(BasicTrader):
                 if jusik_data[6] > constant.MAX_PROFIT_PERCENT: # 만약 이득 분기를 넘기면
                     self._sell_jusik(jusik_data)  # 주식 판매
                 elif jusik_data[6] < -1 * constant.MAX_LOSS_PERCENT:  # 만약 손해 분기를 넘기면
-                    print(not_buy_dict)
+                    # print(not_buy_dict)
                     try:
                         not_buy_dict[jusik_data[1]] += 1
                         if not_buy_dict[jusik_data[1]] == 2:
@@ -142,6 +145,8 @@ class DantaTrader(BasicTrader):
                         self._sell_jusik(jusik_data)
                 else:
                     print("단타가 끝났습니다. 단타를 종료합니다.")
+                self._log("\n오늘의 재구매 없는 주식 : " + str(not_buy_dict))
+                self._log("단타 알고리즘의 수익률 : " + str(self._profit))
                 self._log_file.close()
                 checker.close()
                 checker.unlink()
