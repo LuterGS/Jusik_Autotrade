@@ -48,26 +48,30 @@ class KiwoomHandler:
 
     def _kiwoom(self, req_num: int, **kwargs):
 
-        # 프로세스 생성 및 시작
-        channel = self._connect_channel()
-        sub_process = Process(target=KiwoomHandler._request_kiwoom,
-                              args=(channel, self._send_queue, self.REQUESTS[req_num], kwargs))
-        sub_process.start()
+        # 요청을 받을 때까지 반복문
+        while True:
+            # 프로세스 생성 및 시작
+            channel = self._connect_channel()
+            sub_process = Process(target=KiwoomHandler._request_kiwoom,
+                                  args=(channel, self._send_queue, self.REQUESTS[req_num], kwargs))
+            sub_process.start()
 
-        # 프로세스 이름을 이용한 고유 이름을 가진 Shared memory를 불러옴
-        process_pid = sub_process.pid
-        result_mem = shared_memory.SharedMemory(name="kiwoom_" + str(process_pid), create=True, size=5000)
-        # print("Process : ", process_pid, " is created")
+            # 프로세스 이름을 이용한 고유 이름을 가진 Shared memory를 불러옴
+            process_pid = sub_process.pid
+            result_mem = shared_memory.SharedMemory(name="kiwoom_" + str(process_pid), create=True, size=5000)
+            # print("Process : ", process_pid, " is created")
 
-        # 프로세스에게 Shared memory의 접근을 해제하고 프로그램을 종료하라는 시그널을 보냄
-        # os.kill(process_pid, signal.SIGUSR2)
-        sub_process.join()
+            # 프로세스에게 Shared memory의 접근을 해제하고 프로그램을 종료하라는 시그널을 보냄
+            # os.kill(process_pid, signal.SIGUSR2)
+            sub_process.join()
 
-        # 이후 Shared memory에서 값을 읽어들여온 후 종료함
-        result_value = else_func.byte_to_original(bytes(result_mem.buf), req_num)
-        result_mem.close()
-        result_mem.unlink()
-        return result_value
+            # 이후 Shared memory에서 값을 읽어들여온 후 종료함
+            result_value = else_func.byte_to_original(bytes(result_mem.buf), req_num)
+            result_mem.close()
+            result_mem.unlink()
+
+            if result_value:
+                return result_value
 
     @staticmethod
     def _request_kiwoom(channel, send_queue_name, request_name: str, kwargs):
@@ -90,13 +94,13 @@ class KiwoomHandler:
 
         # print("send_data : ", send_data)
 
-        # Windows에 요청을 보냄
+        # Windows에 요청을 보냄 - 응답을 받을 때까지
         channel.basic_publish(exchange='', routing_key=send_queue_name, body=send_data)
         # print("send_result : ", result)
         channel.close()
 
         # _que_setter가 공유 메모리에 값을 다 쓸 때까지 대기함 (오류를 막기 위해, max 한시간까지 대기함)
-        signal.sigtimedwait([signal.SIGUSR1], 3600)
+        signal.sigtimedwait([signal.SIGUSR1], 10)
 
     @staticmethod
     def _que_getter(channel, recv_queue_name):
@@ -148,12 +152,17 @@ class KiwoomHandler:
 
 if __name__ == "__main__":
     test = KiwoomHandler()
+    highest = test.get_highest_trade_amount()
+    print(highest)
+    test.buy_jusik(highest[0][0], 2, highest[0][2])
+    # print(test.get_highest_trade_amount())
+    print(test.get_profit_percent())
     # balance = test.get_balance()
     # amount = test.get_highest_trade_amount()
     # buy_result = test.buy_jusik(code=amount[0][0], amount=1, price=amount[0][2])
     # print("get_balance result is : ", test.get_balance())
     # print("거래량급증요청!", amount)
     # print("주식 하나만 사보기!", buy_result)
-    total = test.get_profit_percent()
-    print("len : ", len(total))
-    print(total)
+    # total = test.get_profit_percent()
+    # print("len : ", len(total))
+    # print(total)

@@ -7,9 +7,11 @@ import constant
 import else_func
 
 _SIG_A_INIT_TIME = "09" + constant.TRADE_LAST_MIN
-_SIG_B_INIT_TIME = "1200"
+_SIG_B_INIT_TIME = constant.DANTA_END_HOUR + constant.DANTA_END_MIN
 _SIG_C_INIT_TIME = "1519"
 _SIG_D_INIT_TIME = "0355"
+# 점검시간 80분
+_END_MAINTENANCE = "0515"
 
 
 def set_alarm():
@@ -17,9 +19,14 @@ def set_alarm():
     cur_time = else_func.get_hm()
     if int(cur_time) < int(_SIG_D_INIT_TIME):   # 현재 시간이 00:00~03:54일 때 - sig_d 핸들러를 호출하게끔 설정해야 한다.
         signal.alarm(else_func.get_timediff(cur_time, _SIG_D_INIT_TIME))
+        signal.signal(signal.SIGALRM, sig_d)
         return 0
+    elif int(cur_time) < int(_END_MAINTENANCE):   # 현재 시간이 점검 시간일 때 - 그냥 자고 1을 return함.
+        time.sleep(else_func.get_timediff(cur_time, _END_MAINTENANCE))
+        return 1
     elif int(cur_time) < int(_SIG_A_INIT_TIME): # 현재 시간이 03:55~09:xx(설정시) 일 때 - sig_a 핸들러를 호출하게끔 설정해아 한다.
         signal.alarm(else_func.get_timediff(cur_time, _SIG_A_INIT_TIME))
+        signal.signal(signal.SIGALRM, sig_a)
         return 1
     elif int(cur_time) < int(_SIG_B_INIT_TIME): # 현재 시간이 09:xx~12:00 일 때 - sig_b 핸들러를 호출하게끔 설정해아 한다.
         signal.alarm(else_func.get_timediff(cur_time, _SIG_B_INIT_TIME))
@@ -27,9 +34,11 @@ def set_alarm():
         return 2
     elif int(cur_time) < int(_SIG_C_INIT_TIME): # 현재 시간이 12:00~15:19 일 때 - sig_c 핸들러를 호출하게끔 설정해야 한다.
         signal.alarm(else_func.get_timediff(cur_time, _SIG_C_INIT_TIME))
+        signal.signal(signal.SIGALRM, sig_c)
         return 3
     else:                                       # 현재 시간이 15:20~24:00 일 때 - sig_d 핸들러를 호출하게끔 설정해야 한다.
         signal.alarm(else_func.get_timediff(cur_time, _SIG_D_INIT_TIME))
+        signal.signal(signal.SIGALRM, sig_d)
         return 0
 
 
@@ -47,6 +56,7 @@ def sig_b(signum, frame):
     # 얘를 종료해주기 위해 shared memory를 생성한다.
 
     # 이 Shared memory를 생성하면, 단타 알고리즘에서 감지 후 단타 알고리즘이 멈추게 된다.
+    print("Handler is called!")
     checker = shared_memory.SharedMemory(name=constant.SIGNAL_B, create=True, size=10)
 
 
@@ -61,9 +71,7 @@ def sig_d(signum, frame):
     # 점검시간을 알리는 핸들러
     # 이 시그널이 발생하면, 점검시간을 피해가도록 일정 시간 쉰다.
     # 현재는 03시 55분부터 05시 15분까지, 총 80분을 쉰다.
-
     print("점검시간을 대비, 80분을 쉽니다.")
-    time.sleep(4800)
 
 
 

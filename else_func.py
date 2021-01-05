@@ -21,6 +21,9 @@ def byte_to_original(result_value: bytes, request_num):
     # 바이트로 된 결과값을 일단 디코딩함 (string으로)
 
     return_value = result_value.replace(b'\x00', b'').decode()
+    if return_value == "FAIL":      # 아무 값도 없을 때 재요청
+        print("FAILED AT ", str(datetime.datetime.now()))
+        return False
     # print(return_value)
     if request_num == 0:        # 잔액요청일 때
         return int(return_value)
@@ -34,6 +37,7 @@ def byte_to_original(result_value: bytes, request_num):
         # print("retrval : ", return_value)
         return return_value
     elif request_num == 2 or request_num == 3:      # 주식판매 / 주식구매일 때
+        # print(return_value)
         return int(return_value)
 
     elif request_num == 4:      # 수익률요청일 때
