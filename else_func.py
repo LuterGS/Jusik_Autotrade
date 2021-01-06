@@ -60,6 +60,13 @@ def byte_to_original(input_value: bytes, request_num):
             return True
         else:
             return False
+    elif request_num == 6:
+        return_value = return_value.split("/")
+        return_value.pop()
+        for i in range(len(return_value)):
+            return_value[i] = return_value[i].split(",")
+
+        return return_value
 
 
 def get_only_code(datas):
@@ -89,6 +96,18 @@ def get_timediff(time_str1, time_str2, reverse=False):
         time2 = time2 + datetime.timedelta(days=1)
 
     return int((time2 - time1).total_seconds())
+
+
+def write_pdata_to_file(data, writer):
+    for line in data:
+        length = len(line)
+        not_enough = 13-length
+        for i in range(length):
+            writer.write(line[i] + ", ")
+        for i in range(not_enough):
+            writer.write(" , ")
+        writer.write("\n")
+    return writer
 
 
 

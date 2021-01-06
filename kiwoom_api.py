@@ -13,7 +13,7 @@ def signal_handler(signum, frame):
 
 
 class KiwoomHandler:
-    REQUESTS = ["잔액요청", "거래량급증요청", "주식구매", "주식판매", "수익률요청", "프로그램재시작"]
+    REQUESTS = ["잔액요청", "거래량급증요청", "주식구매", "주식판매", "수익률요청", "프로그램재시작", "주식분봉차트조회요청"]
 
     # 주식구매를 위해선 주식코드, 개수, 가격을 요청해야 한다.
     # self._request_kiwoom에 요청하도록 한다.
@@ -43,7 +43,7 @@ class KiwoomHandler:
         connection = pika.BlockingConnection(pika.ConnectionParameters(self._url, self._port, self._vhost, self._cred))
         return connection.channel()
 
-    def _kiwoom(self, req_num: int, **kwargs):
+    def _kiwoom(self, req_num: int, buffer_size=5000, **kwargs):
 
         # 요청을 받을 때까지 반복문
         while True:
@@ -55,7 +55,7 @@ class KiwoomHandler:
 
             # 프로세스 이름을 이용한 고유 이름을 가진 Shared memory를 불러옴
             process_pid = sub_process.pid
-            result_mem = shared_memory.SharedMemory(name="kiwoom_" + str(process_pid), create=True, size=5000)
+            result_mem = shared_memory.SharedMemory(name="kiwoom_" + str(process_pid), create=True, size=buffer_size)
             # print("Process : ", process_pid, " is created")
 
             # 프로세스에게 Shared memory의 접근을 해제하고 프로그램을 종료하라는 시그널을 보냄
@@ -131,24 +131,29 @@ class KiwoomHandler:
     # 이 부분에 있는 메소드만을 호출함으로써 외부에서 안정적인 호출이 가능하다.
 
     def get_balance(self):
-        return self._kiwoom(0)
+        return self._kiwoom(0, 50)
 
-    def get_highest_trade_amount(self, last_min=constant.TRADE_LAST_MIN, market=constant.TRADE_MARKET, is_percent=constant.VIEW_AS_PERCENT):
-        return self._kiwoom(1, last_min=str(last_min), market=str(market), is_percent=str(is_percent))
+    def get_highest_trade_amount(self, last_min=constant.TRADE_LAST_MIN, market=constant.TRADE_MARKET,
+                                 is_percent=constant.VIEW_AS_PERCENT, is_min=True):
+        if is_min:
+            min, last_min = "1", last_min
+        else:
+            min, last_min = "2", ""
+        return self._kiwoom(1, 5000, last_min=str(last_min), market=str(market), is_percent=str(is_percent), min=min)
 
     def buy_jusik(self, code, amount, price):
-        return self._kiwoom(2, code=str(code), amount=str(amount), price=str(price))
+        return self._kiwoom(2, 10, code=str(code), amount=str(amount), price=str(price))
 
     def sell_jusik(self, code, amount, price):
-        return self._kiwoom(3, code=str(code), amount=str(amount), price=str(price))
+        return self._kiwoom(3, 10, code=str(code), amount=str(amount), price=str(price))
 
     def get_profit_percent(self):
-        return_value = self._kiwoom(4)
+        return_value = self._kiwoom(4, 1000)
         del return_value[0]
         return return_value
 
     def program_restart(self, time_: int):
-        self._kiwoom(5, time=str(time_))
+        self._kiwoom(5, 50, time=str(time_))
         time.sleep(time_ + 60)
 
     def program_nosleep_restart(self, time_: int):
@@ -156,13 +161,31 @@ class KiwoomHandler:
         보통의 program_restart는 같이 쉬지만, 이 메소드는 쉬지 않는다.
         적어도, time_ + 60 초가 흐른 뒤에 다시 Windows에 접근할 것을 추천한다 (부팅시간 필요)
         """
-        self._kiwoom(5, time=str(time_))
+        self._kiwoom(5, 50, time=str(time_))
+
+    def get_past_min_data(self, code, custom_filename=None):
+        """
+        6개월치 종목코드에 따른 분봉 과거데이터를 파일에 기록한다.
+        """
+        if custom_filename is not None:
+            filename = custom_filename
+        else:
+            filename = code + ".txt"
+        with open(filename, "w", encoding='utf8') as savefile:
+            savefile.write("체결시간,\t현재가,\t거래량,\t시가,\t고가,\t저가,\t수정주가구분,\t수정비율,\t대업종구분,\t소업종구분,\t종목정보,\t수정주가이벤트,\t전일종가\n")
+            savefile = else_func.write_pdata_to_file(self._kiwoom(6, 300000, code=str(code), is_continue="0"), savefile)
+            for i in range(55):
+                savefile = else_func.write_pdata_to_file(self._kiwoom(6, 300000, code=str(code), is_continue="2"), savefile)
+            return True
 
 
 if __name__ == "__main__":
     test = KiwoomHandler()
-    val = test.get_balance()
+    val = test.get_highest_trade_amount(is_min=False)
     print(val)
+    print(len(val))
+    for data in val:
+        test.get_past_min_data(data[0], data[0] + "_" + data[1] + ".txt")
     # highest = test.get_highest_trade_amount()
     # print(highest)
     # test.buy_jusik(highest[0][0], 2, highest[0][2])
