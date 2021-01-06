@@ -17,10 +17,12 @@ class ThreadwithReturn(Thread):
         return self._return
 
 
-def byte_to_original(result_value: bytes, request_num):
+def byte_to_original(input_value: bytes, request_num):
     # 바이트로 된 결과값을 일단 디코딩함 (string으로)
 
-    return_value = result_value.replace(b'\x00', b'').decode()
+    # print("RAW : ", input_value)
+    return_value = input_value.replace(b'\x00', b'').decode()
+    # print("TRIMMED : ", return_value)
     if return_value == "FAIL":      # 아무 값도 없을 때 재요청
         print("FAILED AT ", str(datetime.datetime.now()))
         return False
@@ -28,7 +30,7 @@ def byte_to_original(result_value: bytes, request_num):
     if request_num == 0:        # 잔액요청일 때
         return int(return_value)
     elif request_num == 1:      # 거래량급증요청일 때
-        return_value = result_value.decode().split("/")
+        return_value = return_value.split("/")
         return_value.pop()
 
         for i in range(len(return_value)):
@@ -41,14 +43,23 @@ def byte_to_original(result_value: bytes, request_num):
         return int(return_value)
 
     elif request_num == 4:      # 수익률요청일 때
-        return_value = result_value.decode().split("/")
+        return_value = return_value.split("/")
         return_value.pop()
+        # print("RAW : ", return_value)
 
-        for i in range(len(return_value)):
+        for i in range(1, len(return_value)):
             return_value[i] = return_value[i].split(",")
+            # print(return_value)
             return_value[i][6] = float(return_value[i][6])
         # print("수익률 리스트 : ", return_value)
+
+        # print(return_value)
         return return_value
+    elif request_num == 5:
+        if return_value == "RESTART":
+            return True
+        else:
+            return False
 
 
 def get_only_code(datas):

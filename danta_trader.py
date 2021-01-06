@@ -84,10 +84,17 @@ class DantaTrader(BasicTrader):
                     if buy_list[i][1] == data:
                         break
                 del buy_list[i]
-        buy_list = buy_list[:selection]
+        
+        # 상위 목록을 추려내되, 한 주식당 구매가격이 한 주보다 적을 때는 다음 주식을 구매하게끔 함
+        counter = 0
         final_list = []
-        for data in buy_list:
-            final_list.append([data[0], data[1], int(one_mungchi / data[2]), data[2]])
+        for i in range(len(buy_list)):
+            amount = int(one_mungchi / buy_list[i][2])
+            if amount != 0:
+                final_list.append([buy_list[i][0], buy_list[i][1], amount, buy_list[i][2]])
+                counter += 1
+            if counter == selection:
+                break
         return final_list
 
     def buy(self, one_mungchi=constant.ONE_JONGMOK_TOTAL_PRICE, selection=constant.TOTAL_JONGMOK_NUM):
@@ -102,6 +109,7 @@ class DantaTrader(BasicTrader):
             if len(cur_jusik_data) < constant.TOTAL_JONGMOK_NUM:
                 # print("im in!")
                 new_recommended = self._get_recommend(one_mungchi, selection, not_buy_dict)  # 추천종목 받아옴
+                # print(new_recommended)
                 recommended_code = else_func.get_only_code(new_recommended)  # 값 비교를 위해 리스트만 떼옴
                 current_code = else_func.get_only_code(cur_jusik_data)
                 diff_count = constant.TOTAL_JONGMOK_NUM - len(cur_jusik_data)  # 몇개나 다른지 알아봄

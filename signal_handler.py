@@ -26,8 +26,7 @@ def set_alarm():
         # 먼저 켜져있는 Windows에 sleep명령 보냄
         windows = KiwoomHandler()
         timediff = else_func.get_timediff(cur_time, _END_MAINTENANCE)
-        windows.program_restart(timediff)
-        time.sleep(timediff)
+        windows.program_restart(timediff)   # 내부에서 쉬는 것까지 완벽 구현되어있음
         return 1
     elif int(cur_time) < int(_SIG_A_INIT_TIME): # 현재 시간이 03:55~09:xx(설정시) 일 때 - sig_a 핸들러를 호출하게끔 설정해아 한다.
         signal.alarm(else_func.get_timediff(cur_time, _SIG_A_INIT_TIME))

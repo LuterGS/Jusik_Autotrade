@@ -32,9 +32,6 @@ class KiwoomHandler:
             pika.ConnectionParameters(self._url, self._port, self._vhost, self._cred))
         self._channel = self._connection.channel()
 
-        # Shared memory를 위한 이름 설정
-        self._name = 10000
-
         # 먼저 윈도우 출력을 받는 큐를 생성
         self._que_get = Process(target=self._que_getter, args=(self._connect_channel(), self._recv_queue))
         self._que_get.start()
@@ -67,10 +64,12 @@ class KiwoomHandler:
 
             # 이후 Shared memory에서 값을 읽어들여온 후 종료함
             result_value = else_func.byte_to_original(bytes(result_mem.buf), req_num)
+            # print("result value is : ", result_value)
             result_mem.close()
             result_mem.unlink()
 
             if result_value:
+                # print("Will return")
                 return result_value
 
     @staticmethod
@@ -144,19 +143,31 @@ class KiwoomHandler:
         return self._kiwoom(3, code=str(code), amount=str(amount), price=str(price))
 
     def get_profit_percent(self):
-        return self._kiwoom(4)
+        return_value = self._kiwoom(4)
+        del return_value[0]
+        return return_value
 
     def program_restart(self, time_: int):
+        self._kiwoom(5, time=str(time_))
+        time.sleep(time_ + 60)
+
+    def program_nosleep_restart(self, time_: int):
+        """
+        보통의 program_restart는 같이 쉬지만, 이 메소드는 쉬지 않는다.
+        적어도, time_ + 60 초가 흐른 뒤에 다시 Windows에 접근할 것을 추천한다 (부팅시간 필요)
+        """
         self._kiwoom(5, time=str(time_))
 
 
 if __name__ == "__main__":
     test = KiwoomHandler()
-    highest = test.get_highest_trade_amount()
-    print(highest)
-    test.buy_jusik(highest[0][0], 2, highest[0][2])
+    val = test.get_balance()
+    print(val)
+    # highest = test.get_highest_trade_amount()
+    # print(highest)
+    # test.buy_jusik(highest[0][0], 2, highest[0][2])
     # print(test.get_highest_trade_amount())
-    print(test.get_profit_percent())
+    # print(test.get_profit_percent())
     # balance = test.get_balance()
     # amount = test.get_highest_trade_amount()
     # buy_result = test.buy_jusik(code=amount[0][0], amount=1, price=amount[0][2])
