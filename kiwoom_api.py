@@ -166,6 +166,7 @@ class KiwoomHandler:
     def get_past_min_data(self, code, custom_filename=None):
         """
         6개월치 종목코드에 따른 분봉 과거데이터를 파일에 기록한다.
+        156100
         """
         if custom_filename is not None:
             filename = custom_filename
@@ -184,8 +185,15 @@ if __name__ == "__main__":
     val = test.get_highest_trade_amount(is_min=False)
     print(val)
     print(len(val))
-    for data in val:
-        test.get_past_min_data(data[0], data[0] + "_" + data[1] + ".txt")
+    k = 0
+    for i in range(len(val)):
+        if val[i][0] == "352770":
+            k = i
+            break
+
+    for j in range(k, len(val)):
+        test.get_past_min_data(val[j][0], val[j][0] + "_" + val[j][1] + ".txt")
+        print(val[j][0] + "_" + val[j][1] + " completed")
     # highest = test.get_highest_trade_amount()
     # print(highest)
     # test.buy_jusik(highest[0][0], 2, highest[0][2])
