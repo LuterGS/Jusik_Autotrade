@@ -72,7 +72,7 @@ class DantaTrader(BasicTrader):
         print(result)
         self._log(result)
 
-    def _get_recommend(self, one_mungchi: int, selection: int, not_buy_list: dict):
+    def _get_recommend(self, one_mungchi: int, selection: int, not_buy_list: dict, cur_jusik_data: list):
         # 주식구매시의 안정성을 위해 입금금액의 97% 만 투자함
         one_mungchi *= 0.97
 
@@ -84,7 +84,14 @@ class DantaTrader(BasicTrader):
                     if buy_list[i][1] == data:
                         break
                 del buy_list[i]
-        
+
+        # 현재 보유중인 주식도 제외함
+        for data in cur_jusik_data:
+            for i in range(len(buy_list)):
+                if buy_list[i][1] == data[1]:
+                    break
+            del buy_list[i]
+
         # 상위 목록을 추려내되, 한 주식당 구매가격이 한 주보다 적을 때는 다음 주식을 구매하게끔 함
         counter = 0
         final_list = []
@@ -108,18 +115,11 @@ class DantaTrader(BasicTrader):
             # 일단, 만약 매도로 인한 현재 종목수가 부족할 때
             if len(cur_jusik_data) < constant.TOTAL_JONGMOK_NUM:
                 # print("im in!")
-                new_recommended = self._get_recommend(one_mungchi, selection, not_buy_dict)  # 추천종목 받아옴
+                new_recommended = self._get_recommend(one_mungchi, selection, not_buy_dict, cur_jusik_data)  # 추천종목 받아옴
                 # print(new_recommended)
-                recommended_code = else_func.get_only_code(new_recommended)  # 값 비교를 위해 리스트만 떼옴
-                current_code = else_func.get_only_code(cur_jusik_data)
                 diff_count = constant.TOTAL_JONGMOK_NUM - len(cur_jusik_data)  # 몇개나 다른지 알아봄
-                counter = 0
-                for i in range(constant.TOTAL_JONGMOK_NUM):  # 다른 개수만큼 주식 구매
-                    if current_code.count(recommended_code[i]) == 0:
-                        self._buy_jusik(new_recommended[i])
-                        counter += 1
-                    if counter == diff_count:
-                        break
+                for i in range(diff_count):                                 # 다른 종목수만큼 주식 구매
+                    self._buy_jusik(new_recommended[i])
                 cur_jusik_data = self._kiwoom.get_profit_percent()  # 다시 Renewel
 
             # 거래 비교 시작
@@ -129,14 +129,14 @@ class DantaTrader(BasicTrader):
                 if jusik_data[6] > constant.MAX_PROFIT_PERCENT: # 만약 이득 분기를 넘기면
                     self._sell_jusik(jusik_data)  # 주식 판매
                 elif jusik_data[6] < -1 * constant.MAX_LOSS_PERCENT:  # 만약 손해 분기를 넘기면
-                    # print(not_buy_dict)
+                    self._sell_jusik(jusik_data)
                     try:
                         not_buy_dict[jusik_data[1]] += 1
                         if not_buy_dict[jusik_data[1]] == 2:
                             print("종목 ", jusik_data[1], " 은 총 두 번의 손실을 입었으므로, 오늘은 더 이상 구매하지 않습니다.")
                     except KeyError:
                         not_buy_dict[jusik_data[1]] = 1
-                    self._sell_jusik(jusik_data)
+
 
             # print("End of cycle")
 

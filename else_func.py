@@ -23,9 +23,14 @@ def byte_to_original(input_value: bytes, request_num):
     # print("RAW : ", input_value)
     return_value = input_value.replace(b'\x00', b'').decode()
     # print("TRIMMED : ", return_value)
-    if return_value == "FAIL":      # 아무 값도 없을 때 재요청
+    if return_value == "FAIL":
+        # FAIL일 때 : 키움 API에서 대기시간이 초과했을 때,
         print("FAILED AT ", str(datetime.datetime.now()))
         return False
+    elif return_value == "":
+        # ""일 때는 Windows에서 요청이 안온 경우 (Delayed)
+        print("Windows에서의 요청이 딜레이됨, Windows 확인 필요 : ", str(datetime.datetime.now()))
+        print("다른 프로그램이 Queue를 같이 사용하고 있을 수 있습니다.")
     # print(return_value)
     if request_num == 0:        # 잔액요청일 때
         return int(return_value)

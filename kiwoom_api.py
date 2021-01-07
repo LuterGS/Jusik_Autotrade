@@ -99,7 +99,7 @@ class KiwoomHandler:
         channel.close()
 
         # _que_setter가 공유 메모리에 값을 다 쓸 때까지 대기함 (오류를 막기 위해, max 한시간까지 대기함)
-        signal.sigtimedwait([signal.SIGUSR1], 10)
+        signal.sigtimedwait([signal.SIGUSR1], 20)       # 넉넉하게 20초를 대기함
 
     @staticmethod
     def _que_getter(channel, recv_queue_name):
@@ -109,8 +109,11 @@ class KiwoomHandler:
         while True:
             # 일정 주기로 값을 계속 받아옴
             time.sleep(0.2)
-            value = channel.basic_get(queue=recv_queue_name, auto_ack=True)[2]
+            value = channel.basic_get(queue=recv_queue_name, auto_ack=True)
+            # print(value)
+            value = value[2]
             if value is not None:
+                # print(value)
                 # 만약 큐에 값이 있어서 성공적으로 읽어들여왔다면
                 try:
                     value = value.split(b'|')  # 프로세스번호와 데이터를 분리하기 위해 '|'를 사용한다.
@@ -182,6 +185,16 @@ class KiwoomHandler:
 
 if __name__ == "__main__":
     test = KiwoomHandler()
+    # 20200107 TEST 모의투자계좌잔고 : 876만 8069원
+    # print(test.sell_jusik("057030", "42", "8250"))
+
+    for i in range(10):
+        print(test.buy_jusik("057030", "1", "9000"))
+        print(test.get_profit_percent())
+        print(test.get_highest_trade_amount())
+        print(test.sell_jusik("057030", "1", "8200"))
+    exit(1)
+
     val = test.get_highest_trade_amount(is_min=False)
     print(val)
     print(len(val))
