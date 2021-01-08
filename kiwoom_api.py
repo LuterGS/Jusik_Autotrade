@@ -68,9 +68,12 @@ class KiwoomHandler:
             result_mem.close()
             result_mem.unlink()
 
+            # 정상적으로 result_value가 False가 아닐 때는 값을 Return한다.
             if result_value:
                 # print("Will return")
                 return result_value
+            # 아닐 때는 재시도 print를 찍는다.
+            print("요청이 정상적으로 시도되지 않았습니다. 재요청합니다.")
 
     @staticmethod
     def _request_kiwoom(channel, send_queue_name, request_name: str, kwargs):
@@ -185,6 +188,8 @@ class KiwoomHandler:
 
 if __name__ == "__main__":
     test = KiwoomHandler()
+    print(test.get_balance())
+    exit(1)
     # 20200107 TEST 모의투자계좌잔고 : 876만 8069원
     # print(test.sell_jusik("057030", "42", "8250"))
 
