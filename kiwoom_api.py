@@ -106,7 +106,7 @@ class KiwoomHandler:
         for i in range(len(kwargs)):
             send_data += kwargs[i].encode() + b','
 
-        # print("send_data : ", send_data)
+        print("send_data : ", send_data.decode(), "      request pid : ", cur_pid)
 
         # Windows에 요청을 보냄 - 응답을 받을 때까지
         channel.basic_publish(exchange='', routing_key=send_queue_name, body=send_data)
@@ -204,6 +204,9 @@ if __name__ == "__main__":
     exit(1)
     # 20200107 TEST 모의투자계좌잔고 : 876만 8069원
     # print(test.sell_jusik("057030", "42", "8250"))
+    print(test.buy_jusik("057030", "1", "9000"))
+    print(test.get_profit_percent())
+    exit(1)
 
     for i in range(10):
         print(test.buy_jusik("057030", "1", "9000"))
