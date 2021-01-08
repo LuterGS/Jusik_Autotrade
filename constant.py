@@ -54,6 +54,14 @@ def GET_MQ_VALUE():
             return_val[line[0]] = line[1]
     return return_val
 
+def GET_DB_VALUE():
+    return_val = {}
+    with open(_PATH + "DB_VALUE.txt", "r", encoding="utf8") as mqfile:
+        for line in mqfile:
+            line = line.replace("\n", "").split("=")
+            return_val[line[0]] = line[1]
+    return return_val
+
 
 if __name__ == "__main__":
     GET_MQ_VALUE()

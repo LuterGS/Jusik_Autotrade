@@ -200,20 +200,20 @@ class KiwoomHandler:
 
 if __name__ == "__main__":
     test = KiwoomHandler()
-    print(test.get_balance())
-    exit(1)
-    # 20200107 TEST 모의투자계좌잔고 : 876만 8069원
-    # print(test.sell_jusik("057030", "42", "8250"))
-    print(test.buy_jusik("057030", "1", "9000"))
-    print(test.get_profit_percent())
-    exit(1)
-
-    for i in range(10):
-        print(test.buy_jusik("057030", "1", "9000"))
-        print(test.get_profit_percent())
-        print(test.get_highest_trade_amount())
-        print(test.sell_jusik("057030", "1", "8200"))
-    exit(1)
+    # print(test.get_balance())
+    # exit(1)
+    # # 20200107 TEST 모의투자계좌잔고 : 876만 8069원
+    # # print(test.sell_jusik("057030", "42", "8250"))
+    # print(test.buy_jusik("057030", "1", "9000"))
+    # print(test.get_profit_percent())
+    # exit(1)
+    #
+    # for i in range(10):
+    #     print(test.buy_jusik("057030", "1", "9000"))
+    #     print(test.get_profit_percent())
+    #     print(test.get_highest_trade_amount())
+    #     print(test.sell_jusik("057030", "1", "8200"))
+    # exit(1)
 
     val = test.get_highest_trade_amount(is_min=False)
     print(val)
@@ -224,7 +224,7 @@ if __name__ == "__main__":
             k = i
             break
 
-    for j in range(k, len(val)):
+    for j in range(20, len(val)):
         test.get_past_min_data(code=val[j][0], custom_filename=val[j][0] + "_" + val[j][1] + ".txt")
         print(val[j][0] + "_" + val[j][1] + " completed")
     # highest = test.get_highest_trade_amount()
