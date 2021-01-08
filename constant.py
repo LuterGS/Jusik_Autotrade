@@ -10,7 +10,7 @@ print(_PATH)
 
 # 수익률을 의미, 정해진 %만큼의 이득이나 손실을 보면 바로 익절/손절함
 MAX_PROFIT_PERCENT = 3      # 이득 퍼센트
-MAX_LOSS_PERCENT = 1.5      # 손실 퍼센트
+MAX_LOSS_PERCENT = 1      # 손실 퍼센트
 
 # 한 종목에 투자할 주식의 금액
 ONE_JONGMOK_TOTAL_PRICE = 500000   # 백만원으로 설정

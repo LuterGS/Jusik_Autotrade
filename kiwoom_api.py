@@ -1,6 +1,7 @@
 import time
 import signal
 import os
+import datetime
 from multiprocessing import Process, shared_memory
 import pika
 
@@ -36,14 +37,25 @@ class KiwoomHandler:
         self._que_get = Process(target=self._que_getter, args=(self._connect_channel(), self._recv_queue))
         self._que_get.start()
 
-        # test val
-        self.testval = False
+        # 요청 사이의 간격 조정
+        self._saved_time = datetime.datetime.now()
+
+    def _sleep_reqtime(self, sleep_time):
+        cur_time = datetime.datetime.now()
+        diff_time = cur_time - self._saved_time
+        diff_time_seconds = diff_time.seconds + (diff_time.microseconds / 1000000)
+        if diff_time_seconds < sleep_time:
+            time.sleep(sleep_time - diff_time_seconds)
+        self._saved_time = datetime.datetime.now()
+
 
     def _connect_channel(self):
         connection = pika.BlockingConnection(pika.ConnectionParameters(self._url, self._port, self._vhost, self._cred))
         return connection.channel()
 
-    def _kiwoom(self, req_num: int, buffer_size=5000, **kwargs):
+    def _kiwoom(self, req_num: int, buffer_size=5000, sleep_time=3.5, **kwargs):
+        # 요청한 timestamp 만큼 잠듬
+        self._sleep_reqtime(sleep_time)
 
         # 요청을 받을 때까지 반복문
         while True:
@@ -136,30 +148,30 @@ class KiwoomHandler:
     # 이 부분에 있는 메소드들은 클래스 외부에서도 접근이 가능한 Public 메소드들임
     # 이 부분에 있는 메소드만을 호출함으로써 외부에서 안정적인 호출이 가능하다.
 
-    def get_balance(self):
-        return self._kiwoom(0, 50)
+    def get_balance(self, sleep_time=3.5):
+        return self._kiwoom(0, buffer_size=50, sleep_time=sleep_time)
 
     def get_highest_trade_amount(self, last_min=constant.TRADE_LAST_MIN, market=constant.TRADE_MARKET,
-                                 is_percent=constant.VIEW_AS_PERCENT, is_min=True):
+                                 is_percent=constant.VIEW_AS_PERCENT, is_min=True, sleep_time=3.5):
         if is_min:
             min, last_min = "1", last_min
         else:
             min, last_min = "2", ""
-        return self._kiwoom(1, 5000, last_min=str(last_min), market=str(market), is_percent=str(is_percent), min=min)
+        return self._kiwoom(1, buffer_size=5000, sleep_time=sleep_time, last_min=str(last_min), market=str(market), is_percent=str(is_percent), min=min)
 
-    def buy_jusik(self, code, amount, price):
-        return self._kiwoom(2, 10, code=str(code), amount=str(amount), price=str(price))
+    def buy_jusik(self, code, amount, price, sleep_time=0.2):
+        return self._kiwoom(2, buffer_size=10, sleep_time=sleep_time, code=str(code), amount=str(amount), price=str(price))
 
-    def sell_jusik(self, code, amount, price):
-        return self._kiwoom(3, 10, code=str(code), amount=str(amount), price=str(price))
+    def sell_jusik(self, code, amount, price, sleep_time=0.2):
+        return self._kiwoom(3, buffer_size=10, sleep_time=sleep_time, code=str(code), amount=str(amount), price=str(price))
 
-    def get_profit_percent(self):
-        return_value = self._kiwoom(4, 1000)
+    def get_profit_percent(self, sleep_time=3.5):
+        return_value = self._kiwoom(4, buffer_size=1000, sleep_time=sleep_time)
         del return_value[0]
         return return_value
 
     def program_restart(self, time_: int):
-        self._kiwoom(5, 50, time=str(time_))
+        self._kiwoom(5, buffer_size=50, sleep_time=0, time=str(time_))
         time.sleep(time_ + 60)
 
     def program_nosleep_restart(self, time_: int):
@@ -167,9 +179,9 @@ class KiwoomHandler:
         보통의 program_restart는 같이 쉬지만, 이 메소드는 쉬지 않는다.
         적어도, time_ + 60 초가 흐른 뒤에 다시 Windows에 접근할 것을 추천한다 (부팅시간 필요)
         """
-        self._kiwoom(5, 50, time=str(time_))
+        self._kiwoom(5, buffer_size=50, sleep_time=0, time=str(time_))
 
-    def get_past_min_data(self, code, custom_filename=None):
+    def get_past_min_data(self, code, sleep_time=3.5, custom_filename=None):
         """
         6개월치 종목코드에 따른 분봉 과거데이터를 파일에 기록한다.
         156100
@@ -180,9 +192,9 @@ class KiwoomHandler:
             filename = code + ".txt"
         with open(filename, "w", encoding='utf8') as savefile:
             savefile.write("체결시간,\t현재가,\t거래량,\t시가,\t고가,\t저가,\t수정주가구분,\t수정비율,\t대업종구분,\t소업종구분,\t종목정보,\t수정주가이벤트,\t전일종가\n")
-            savefile = else_func.write_pdata_to_file(self._kiwoom(6, 300000, code=str(code), is_continue="0"), savefile)
+            savefile = else_func.write_pdata_to_file(self._kiwoom(6, buffer_size=300000, sleep_time=sleep_time, code=str(code), is_continue="0"), savefile)
             for i in range(55):
-                savefile = else_func.write_pdata_to_file(self._kiwoom(6, 300000, code=str(code), is_continue="2"), savefile)
+                savefile = else_func.write_pdata_to_file(self._kiwoom(6, buffer_size=300000, sleep_time=sleep_time, code=str(code), is_continue="2"), savefile)
             return True
 
 
@@ -210,7 +222,7 @@ if __name__ == "__main__":
             break
 
     for j in range(k, len(val)):
-        test.get_past_min_data(val[j][0], val[j][0] + "_" + val[j][1] + ".txt")
+        test.get_past_min_data(code=val[j][0], custom_filename=val[j][0] + "_" + val[j][1] + ".txt")
         print(val[j][0] + "_" + val[j][1] + " completed")
     # highest = test.get_highest_trade_amount()
     # print(highest)
