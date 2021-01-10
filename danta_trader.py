@@ -10,10 +10,6 @@ from kiwoom_api import KiwoomHandler
 from db import DB
 import else_func
 
-"""
-이제야말로 DB를 써서 버전관리를 시작할 때다!
-"""
-
 _PATH = os.path.abspath(os.path.dirname(__file__)) + "/"
 
 
@@ -40,7 +36,7 @@ class DantaTrader(BasicTrader):
         cur_time = datetime.datetime.now()
         if int(else_func.get_hm()) >= int(constant.DANTA_END_HOUR + constant.DANTA_END_MIN):
             cur_time += datetime.timedelta(days=1)
-        
+
         raw_writer = open(_PATH + "log/" + cur_time.strftime("%y%m%d") + "_구매목록.txt", "a", encoding='utf8')
         csv_writer = csv.writer(raw_writer)
 
@@ -60,11 +56,21 @@ class DantaTrader(BasicTrader):
         # print(sell_detail)
         # KiwoomHandler.sell_jusik의 Wrapper. 로그 남기기 및 화면 출력까지 포함한다.
         self._kiwoom.sell_jusik(sell_detail[0], sell_detail[2], sell_detail[7])
-        result = "종목:" + sell_detail[1] + "(" + sell_detail[0] + "),수익률:" + str(sell_detail[6]) + ",수익금액:" + str(sell_detail[5])
+        result = "종목:" + sell_detail[1] + "(" + sell_detail[0] + "),수익률:" + str(sell_detail[6]) + ",수익금액:" + str(
+            sell_detail[5])
         # 수익금액은 말그대로 손실액수...가 아니네?
         print(result)  # 프린트로 로그 찍고
         self._log(result)  # 구매 로그도 찍음
-        self._db.add_sell_data(datetime.datetime.now(), sell_detail[0], sell_detail[1], str(sell_detail[6]), str(sell_detail[5]))
+        self._db.add_sell_data(
+            datetime.datetime.now(),  # 시간
+            sell_detail[0],  # code
+            sell_detail[1],  # name
+            sell_detail[2],  # amount
+            sell_detail[7],  # price
+            str(int(sell_detail[1]) * int(sell_detail[2])),  # total_price
+            str(sell_detail[6]),  # profit_amount
+            sell_detail[5]  # profit_total_price
+        )
         # 총 수익금 업데이트
         self._profit += int(sell_detail[5])
 
@@ -72,8 +78,16 @@ class DantaTrader(BasicTrader):
         # KiwoomHandler.buy_jusik의 Wrapper. 로그 남기기 및 화면 출려까지 포함한다.
         # print(buy_detail)
         self._kiwoom.buy_jusik(buy_detail[0], buy_detail[2], buy_detail[3])
-        result = "종목:" + buy_detail[1] + "(" + buy_detail[0] + "),구매가격:" + str(buy_detail[3]) + ",구매양:" + str(buy_detail[2]) + ",총구매가격:" + str(buy_detail[2] * buy_detail[3])
-        self._db.add_buy_data(datetime.datetime.now(), buy_detail[0], buy_detail[1], str(buy_detail[2]), str(buy_detail[3]), str(buy_detail[2]) * buy_detail[3])
+        result = "종목:" + buy_detail[1] + "(" + buy_detail[0] + "),구매가격:" + str(buy_detail[3]) + ",구매양:" + str(
+            buy_detail[2]) + ",총구매가격:" + str(buy_detail[2] * buy_detail[3])
+        self._db.add_buy_data(
+            datetime.datetime.now(),  # 시간
+            buy_detail[0],  # code
+            buy_detail[1],  # name
+            str(buy_detail[2]),  # amount
+            str(buy_detail[3]),  # price
+            str(buy_detail[2]) * buy_detail[3]  # total_price
+        )
         print(result)
         self._log(result)
 
@@ -112,7 +126,32 @@ class DantaTrader(BasicTrader):
                 break
         return final_list
 
-    def buy(self, one_mungchi=constant.ONE_JONGMOK_TOTAL_PRICE, selection=constant.TOTAL_JONGMOK_NUM):
+    def _check_exit(self, not_buy_dict: dict):
+        # 시그널 핸들링
+        try:  # 만약 시그널이 호출되었을 때는 프로그램 종료
+            checker = shared_memory.SharedMemory(name=constant.SIGNAL_B, create=False)
+            print("단타가 끝났습니다. ", end='')
+            # 단타 종료시 모든 종목을 팔지, 말지 선택
+            if constant.DANTA_END_METHOD == 0:
+                print(" 설정에 따라 모든 주식을 매매합니다.")
+                cur_jusik_data = self._kiwoom.get_profit_percent()
+                self._log("단타가 끝났습니다. 설정에 따라 모든 주식을 매매합니다.")
+                for jusik_data in cur_jusik_data:
+                    self._sell_jusik(jusik_data)
+            else:
+                print("설정에 따라 주식을 매매하지 않고 종료합니다.")
+            self._log("\n오늘의 재구매 없는 주식 : " + str(not_buy_dict))
+            self._log("단타 알고리즘의 수익률 : " + str(self._profit))
+            self._log("현재 보유금액 : " + str(self._kiwoom.get_balance()))
+            self._log_file.close()
+            checker.close()
+            checker.unlink()
+            del self._kiwoom
+            return True
+        except FileNotFoundError:
+            return False
+
+    def trade(self, one_mungchi=constant.ONE_JONGMOK_TOTAL_PRICE, selection=constant.TOTAL_JONGMOK_NUM):
         # 구매에 대한 Tracking
         # 2번 잃었을 때는 해당 종목은 사지 않기 위한 리스트 작성
         not_buy_dict = {}
@@ -126,7 +165,7 @@ class DantaTrader(BasicTrader):
                 new_recommended = self._get_recommend(one_mungchi, selection, not_buy_dict, cur_jusik_data)  # 추천종목 받아옴
                 # print(new_recommended)
                 diff_count = constant.TOTAL_JONGMOK_NUM - len(cur_jusik_data)  # 몇개나 다른지 알아봄
-                for i in range(diff_count):                                 # 다른 종목수만큼 주식 구매
+                for i in range(diff_count):  # 다른 종목수만큼 주식 구매
                     self._buy_jusik(new_recommended[i])
                 cur_jusik_data = self._kiwoom.get_profit_percent()  # 다시 Renewel
 
@@ -134,7 +173,7 @@ class DantaTrader(BasicTrader):
             # print("2", cur_jusik_data)
             for jusik_data in cur_jusik_data:
                 # print(jusik_data[6], constant.MAX_LOSS_PERCENT, constant.MAX_PROFIT_PERCENT)
-                if jusik_data[6] > constant.MAX_PROFIT_PERCENT: # 만약 이득 분기를 넘기면
+                if jusik_data[6] > constant.MAX_PROFIT_PERCENT:  # 만약 이득 분기를 넘기면
                     self._sell_jusik(jusik_data)  # 주식 판매
                 elif jusik_data[6] < -1 * constant.MAX_LOSS_PERCENT:  # 만약 손해 분기를 넘기면
                     self._sell_jusik(jusik_data)
@@ -145,30 +184,6 @@ class DantaTrader(BasicTrader):
                     except KeyError:
                         not_buy_dict[jusik_data[1]] = 1
 
-
-            # print("End of cycle")
-
-            # 시그널 핸들링
-            try:  # 만약 시그널이 호출되었을 때는 프로그램 종료
-                checker = shared_memory.SharedMemory(name=constant.SIGNAL_B, create=False)
-                print("Handler detected!")
-                # 단타 종료시 모든 종목을 팔지, 말지 선택
-                if constant.DANTA_END_METHOD == 0:
-                    cur_jusik_data = self._kiwoom.get_profit_percent()
-                    print("단타가 끝났습니다. 모든 주식을 매매합니다.")
-                    self._log("단타가 끝났습니다. 설정에 따라 모든 주식을 매매합니다.")
-                    for jusik_data in cur_jusik_data:
-                        self._sell_jusik(jusik_data)
-                else:
-                    print("단타가 끝났습니다. 단타를 종료합니다.")
-                self._log("\n오늘의 재구매 없는 주식 : " + str(not_buy_dict))
-                self._log("단타 알고리즘의 수익률 : " + str(self._profit))
-                self._log_file.close()
-                checker.close()
-                checker.unlink()
-                del self._kiwoom
+            if self._check_exit(not_buy_dict=not_buy_dict):
                 break
-            except FileNotFoundError:
-                pass
-
             # print("PASS THIS!")

@@ -41,6 +41,8 @@ DANTA_END_MIN = "00"      # "00" ~ "59" 사이어야 합니다. 아닐 시 오�
 DANTA_END_METHOD = 0
 
 
+# =============== 이 밑으로는 건드리지 말 것! =================
+
 
 # sig_b를 위한 Shared Memory 이름
 SIGNAL_B = "danta_signal_handling"

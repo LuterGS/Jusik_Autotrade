@@ -9,10 +9,6 @@ import constant
 import else_func
 
 
-def signal_handler(signum, frame):
-    print(signum, frame)
-
-
 class KiwoomHandler:
     REQUESTS = ["잔액요청", "거래량급증요청", "주식구매", "주식판매", "수익률요청", "프로그램재시작", "주식분봉차트조회요청"]
 
@@ -31,11 +27,13 @@ class KiwoomHandler:
         self._recv_queue = get_mq_val['MQ_IN_QUEUE']
         self._connection = pika.BlockingConnection(
             pika.ConnectionParameters(self._url, self._port, self._vhost, self._cred))
-        self._channel = self._connection.channel()
 
-        # 먼저 윈도우 출력을 받는 큐를 생성
-        self._que_get = Process(target=self._que_getter, args=(self._connect_channel(), self._recv_queue))
-        self._que_get.start()
+        # 먼저 윈도우 출력을 받는 큐를 생성 후 작동
+        self._channel = self._connection.channel()
+        self._channel.basic_consume(queue=self._recv_queue, on_message_callback=KiwoomHandler._que_getter,
+                                    auto_ack=True)
+        self._windows_get = Process(target=self._channel.start_consuming, args=())
+        self._windows_get.start()
 
         # 요청 사이의 간격 조정
         self._saved_time = datetime.datetime.now()
@@ -47,7 +45,6 @@ class KiwoomHandler:
         if diff_time_seconds < sleep_time:
             time.sleep(sleep_time - diff_time_seconds)
         self._saved_time = datetime.datetime.now()
-
 
     def _connect_channel(self):
         connection = pika.BlockingConnection(pika.ConnectionParameters(self._url, self._port, self._vhost, self._cred))
@@ -71,14 +68,10 @@ class KiwoomHandler:
             # print("Process : ", process_pid, " is created")
 
             # 프로세스에게 Shared memory의 접근을 해제하고 프로그램을 종료하라는 시그널을 보냄
-            # os.kill(process_pid, signal.SIGUSR2)
-            sub_process.join()
-
-            # 이후 Shared memory에서 값을 읽어들여온 후 종료함
-            result_value = else_func.byte_to_original(bytes(result_mem.buf), req_num)
-            # print("result value is : ", result_value)
+            sub_process.join()      # 서브프로세스 종료 확인
+            result_value = else_func.byte_to_original(bytes(result_mem.buf), req_num)   # 공유메모리에서 값 읽어들여옴
             result_mem.close()
-            result_mem.unlink()
+            result_mem.unlink()             # 이후 공유메모리 해제
 
             # 정상적으로 result_value가 False가 아닐 때는 값을 Return한다.
             if result_value:
@@ -117,33 +110,25 @@ class KiwoomHandler:
         signal.sigtimedwait([signal.SIGUSR1], 20)       # 넉넉하게 20초를 대기함
 
     @staticmethod
-    def _que_getter(channel, recv_queue_name):
-        # 프로세스로 돌아가는 함수
-        # 일정 주기마다 계속 RabbitMQ에서 pop을 요청하고, 값이 들어오면 해당 값을 분석한 뒤
-        # 결과값을 Shared memory에 작성한 뒤, 요청한 프로세스에게 SIGUSR1을 보냄
-        while True:
-            # 일정 주기로 값을 계속 받아옴
-            time.sleep(0.2)
-            value = channel.basic_get(queue=recv_queue_name, auto_ack=True)
-            # print(value)
-            value = value[2]
-            if value is not None:
-                # print(value)
-                # 만약 큐에 값이 있어서 성공적으로 읽어들여왔다면
-                try:
-                    value = value.split(b'|')  # 프로세스번호와 데이터를 분리하기 위해 '|'를 사용한다.
+    def _que_getter(channel_info, deliver_info, properties, value :bytes):
+        # 큐 핸들러, 큐에 입력값이 들어오면 어떻게 처리할 것인지를 구성
 
-                    # 해당 프로세스가 열은 Shared memory에 접근해 값을 쓴다.
-                    saver = shared_memory.SharedMemory(name="kiwoom_" + value[0].decode(), create=False)
-                    saver.buf[:len(value[1])] = value[1]
-                    saver.close()
+        # 초기에 값을 분리해준다.
+        value = value.split(b'|')
 
-                    # 해당 프로세스에게 signal을 보낸다.
-                    os.kill(int(value[0]), signal.SIGUSR1)
-                except ProcessLookupError:
-                    print(ProcessLookupError)
-                except FileNotFoundError:
-                    print("해당 요청은 이미 처리되었습니다.")
+        try:
+            # 분리된 값에 토대로 main process에서 생성한 shared_memory에 접근해, queue의 값을 기록한다.
+            saver = shared_memory.SharedMemory(name='kiwoom_' + value[0].decode(), create=False)
+            saver.buf[:len(value[1])] = value[1]
+            saver.close()
+
+            # 기록이 완료되면, 해당 main의 subprocess에게 SIGUSR1 시그널을 보낸다.
+            os.kill(int(value[0]), signal.SIGUSR1)
+
+        except ProcessLookupError:
+            print("ProcessLookupError 발생!")
+        except FileNotFoundError:
+            print("해당 요청은 이미 처리되었습니다.")
 
     # 이 부분에 있는 메소드들은 클래스 외부에서도 접근이 가능한 Public 메소드들임
     # 이 부분에 있는 메소드만을 호출함으로써 외부에서 안정적인 호출이 가능하다.
@@ -165,7 +150,7 @@ class KiwoomHandler:
     def sell_jusik(self, code, amount, price, sleep_time=0.2):
         return self._kiwoom(3, buffer_size=10, sleep_time=sleep_time, code=str(code), amount=str(amount), price=str(price))
 
-    def get_profit_percent(self, sleep_time=3.5):
+    def get_profit_percent(self, sleep_time=3.6):
         return_value = self._kiwoom(4, buffer_size=1000, sleep_time=sleep_time)
         del return_value[0]
         return return_value
@@ -181,7 +166,7 @@ class KiwoomHandler:
         """
         self._kiwoom(5, buffer_size=50, sleep_time=0, time=str(time_))
 
-    def get_past_min_data(self, code, sleep_time=3.5, custom_filename=None):
+    def get_past_min_data(self, code, sleep_time=3.6, custom_filename=None):
         """
         6개월치 종목코드에 따른 분봉 과거데이터를 파일에 기록한다.
         156100
@@ -200,6 +185,7 @@ class KiwoomHandler:
 
 if __name__ == "__main__":
     test = KiwoomHandler()
+    test.program_restart(10)
     # print(test.get_balance())
     # exit(1)
     # # 20200107 TEST 모의투자계좌잔고 : 876만 8069원

@@ -56,17 +56,17 @@ def byte_to_original(input_value: bytes, request_num):
         for i in range(1, len(return_value)):
             return_value[i] = return_value[i].split(",")
             # print(return_value)
-            return_value[i][6] = float(return_value[i][6])
+            return_value[i][6] = float(return_value[i][6])  # 수익률 빼고 전부 str
         # print("수익률 리스트 : ", return_value)
 
         # print(return_value)
         return return_value
-    elif request_num == 5:
+    elif request_num == 5:              # 프로그램 재시작일 때
         if return_value == "RESTART":
             return True
         else:
             return False
-    elif request_num == 6:
+    elif request_num == 6:              # 주식분봉차트조회요청일 때
         return_value = return_value.split("/")
         return_value.pop()
         for i in range(len(return_value)):
