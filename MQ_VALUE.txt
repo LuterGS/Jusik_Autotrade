@@ -1,8 +1,0 @@
-MQ_URL=localhost
-MQ_PORT=1234
-MQ_VHOST=vhost
-MQ_ID=guest
-MQ_PW=guest
-MQ_IN_QUEUE=to_ubuntu
-MQ_OUT_QUEUE=to_windows
-INFO=설명

@@ -73,6 +73,8 @@ class KiwoomHandler:
             result_mem.close()
             result_mem.unlink()             # 이후 공유메모리 해제
 
+            # print("res:", result_value)
+
             # 정상적으로 result_value가 False가 아닐 때는 값을 Return한다.
             if result_value:
                 # print("Will return")
@@ -84,14 +86,12 @@ class KiwoomHandler:
     def _request_kiwoom(channel, send_queue_name, request_name: str, kwargs):
         # 프로세스로 분기시켜서 실행할 생각이며, 분기된 이후 고유의 pid를 가짐을 이용
         def sig(a, b):
-            # print("signal handling is called    ", a, b)
-            pass
+            print("signal is called")
 
         # 시그널 핸들러를 등록하고, 현재 자신의 pid를 불러옴
         signal.signal(signal.SIGUSR1, sig)
         signal.signal(signal.SIGUSR2, sig)
         cur_pid = os.getpid()
-        # print("cur_pid : ", cur_pid)
 
         # 요청을 보낼 값을 다듬음
         send_data = str(cur_pid).encode() + b'|' + request_name.encode() + b','
@@ -99,7 +99,7 @@ class KiwoomHandler:
         for i in range(len(kwargs)):
             send_data += kwargs[i].encode() + b','
 
-        print("send_data : ", send_data.decode(), "      request pid : ", cur_pid)
+        # print("send_data : ", send_data.decode(), "      request pid : ", cur_pid)
 
         # Windows에 요청을 보냄 - 응답을 받을 때까지
         channel.basic_publish(exchange='', routing_key=send_queue_name, body=send_data)
@@ -115,15 +115,18 @@ class KiwoomHandler:
 
         # 초기에 값을 분리해준다.
         value = value.split(b'|')
+        # print(value)
 
         try:
             # 분리된 값에 토대로 main process에서 생성한 shared_memory에 접근해, queue의 값을 기록한다.
             saver = shared_memory.SharedMemory(name='kiwoom_' + value[0].decode(), create=False)
             saver.buf[:len(value[1])] = value[1]
             saver.close()
+            # print("set saver memory complete")
 
             # 기록이 완료되면, 해당 main의 subprocess에게 SIGUSR1 시그널을 보낸다.
             os.kill(int(value[0]), signal.SIGUSR1)
+            # print("send kill complete")
 
         except ProcessLookupError:
             print("ProcessLookupError 발생!")
@@ -157,7 +160,7 @@ class KiwoomHandler:
 
     def program_restart(self, time_: int):
         self._kiwoom(5, buffer_size=50, sleep_time=0, time=str(time_))
-        time.sleep(time_ + 60)
+        time.sleep(time_ + 300)
 
     def program_nosleep_restart(self, time_: int):
         """
@@ -183,11 +186,22 @@ class KiwoomHandler:
             return True
 
 
+    def _sell_jusik(self, sell_detail):
+        # print(sell_detail)
+        # KiwoomHandler.sell_jusik의 Wrapper. 로그 남기기 및 화면 출력까지 포함한다.
+        self.sell_jusik(sell_detail[0], sell_detail[2], sell_detail[7])
+
+
 if __name__ == "__main__":
     test = KiwoomHandler()
     test.program_restart(10)
-    # print(test.get_balance())
-    # exit(1)
+    val = test.get_balance()
+    print(val)
+
+
+
+
+    exit(1)
     # # 20200107 TEST 모의투자계좌잔고 : 876만 8069원
     # # print(test.sell_jusik("057030", "42", "8250"))
     # print(test.buy_jusik("057030", "1", "9000"))

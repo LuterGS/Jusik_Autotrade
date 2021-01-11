@@ -67,7 +67,7 @@ class DantaTrader(BasicTrader):
             sell_detail[1],  # name
             sell_detail[2],  # amount
             sell_detail[7],  # price
-            str(int(sell_detail[1]) * int(sell_detail[2])),  # total_price
+            str(int(sell_detail[2]) * int(sell_detail[7])),  # total_price
             str(sell_detail[6]),  # profit_amount
             sell_detail[5]  # profit_total_price
         )
@@ -86,7 +86,7 @@ class DantaTrader(BasicTrader):
             buy_detail[1],  # name
             str(buy_detail[2]),  # amount
             str(buy_detail[3]),  # price
-            str(buy_detail[2]) * buy_detail[3]  # total_price
+            str(int(buy_detail[2]) * int(buy_detail[3]))  # total_price
         )
         print(result)
         self._log(result)

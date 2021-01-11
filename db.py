@@ -26,7 +26,7 @@ class DB:
             "profit_total_price": "profit_total_price"
         }
         self._buy_type = {
-            "type": "sell",
+            "type": "buy",
             "code": "code",
             "name": "name",
             "amount": "amount",
@@ -62,3 +62,7 @@ class DB:
 
 if __name__ == "__main__":
     test = DB()
+    val = test._db.lrange("LuterGS", -31, -1)
+    for data in val:
+        strs = data.decode()
+        test._db.rpop("LuterGS")
