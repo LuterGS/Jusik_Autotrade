@@ -1,4 +1,4 @@
-import time
+import warnings
 import datetime
 import signal
 
@@ -6,6 +6,8 @@ from kiwoom_api import KiwoomHandler
 from danta_trader import DantaTrader
 import signal_handler
 import else_func
+
+warnings.filterwarnings("ignore")
 
 """
 주식 자동거래 알고리즘
