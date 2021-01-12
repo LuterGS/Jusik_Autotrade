@@ -94,7 +94,7 @@ class DantaTrader(BasicTrader):
     def _get_recommend(self, one_mungchi: int, selection: int, not_buy_list: dict, cur_jusik_data: list):
         # 주식구매시의 안정성을 위해 입금금액의 97% 만 투자함
         one_mungchi *= 0.97
-        print(not_buy_list, cur_jusik_data)
+        # print(not_buy_list, cur_jusik_data)
 
         # 주식 리스트를 가져온 뒤, 손실 리스트는 뺌
         buy_list = self._kiwoom.get_highest_trade_amount()
@@ -112,7 +112,7 @@ class DantaTrader(BasicTrader):
                     break
             del buy_list[i]
 
-        print(buy_list)
+        # print(buy_list)
 
         # 상위 목록을 추려내되, 한 주식당 구매가격이 한 주보다 적을 때는 다음 주식을 구매하게끔 함
         counter = 0
