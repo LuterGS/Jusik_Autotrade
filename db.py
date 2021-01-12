@@ -35,7 +35,7 @@ class DB:
         }
 
     def _add_user_order_reference(self, log_time: datetime.datetime):
-        str_time = log_time.strftime("%Y%m%d%H%M%S")
+        str_time = log_time.strftime("%Y%m%d%H%M%S%f")
         self._db.rpush(self._username, str_time)
         return str_time
 
