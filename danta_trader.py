@@ -92,6 +92,11 @@ class DantaTrader(BasicTrader):
         self._log(result)
 
     def _get_recommend(self, one_mungchi: int, selection: int, not_buy_list: dict, cur_jusik_data: list):
+        """
+        추천종목 골라주는 메소드
+        not_buy_list는 redis db에서 바로 hgetall로 받아온 dict이므로, 모두 binary string으로 이루어져 있다.
+        """
+
         # 주식구매시의 안정성을 위해 입금금액의 97% 만 투자함
         one_mungchi *= 0.97
         # print(not_buy_list, cur_jusik_data)
@@ -99,9 +104,9 @@ class DantaTrader(BasicTrader):
         # 주식 리스트를 가져온 뒤, 손실 리스트는 뺌
         buy_list = self._kiwoom.get_highest_trade_amount()
         for data in not_buy_list:
-            if not_buy_list[data] == 2:
+            if not_buy_list[data.decode()] == b'2':
                 for i in range(len(buy_list)):
-                    if buy_list[i][1] == data:
+                    if buy_list[i][1] == data.decode():
                         break
                 del buy_list[i]
 
@@ -154,7 +159,7 @@ class DantaTrader(BasicTrader):
     def trade(self, one_mungchi=constant.ONE_JONGMOK_TOTAL_PRICE, selection=constant.TOTAL_JONGMOK_NUM):
         # 구매에 대한 Tracking
         # 2번 잃었을 때는 해당 종목은 사지 않기 위한 리스트 작성
-        not_buy_dict = {}
+        not_buy_dict = self._db.get_not_buy_list()
         while True:
             cur_jusik_data = self._kiwoom.get_profit_percent()
             # print("1", cur_jusik_data)
@@ -177,12 +182,7 @@ class DantaTrader(BasicTrader):
                     self._sell_jusik(jusik_data)  # 주식 판매
                 elif jusik_data[6] < -1 * constant.MAX_LOSS_PERCENT:  # 만약 손해 분기를 넘기면
                     self._sell_jusik(jusik_data)
-                    try:
-                        not_buy_dict[jusik_data[1]] += 1
-                        if not_buy_dict[jusik_data[1]] == 2:
-                            print("종목 ", jusik_data[1], " 은 총 두 번의 손실을 입었으므로, 오늘은 더 이상 구매하지 않습니다.")
-                    except KeyError:
-                        not_buy_dict[jusik_data[1]] = 1
+                    self._db.add_not_buy_list(jusik_data[1])
 
             if self._check_exit(not_buy_dict=not_buy_dict):
                 break

@@ -14,6 +14,9 @@ class DB:
         self._password = get_db_val["password"]
         self._db = redis.StrictRedis(host=self._ip, port=self._port, db=0, password=self._password)
 
+        # define key name
+        self._not_buy_list = "not_buy_list"
+
         # define sell, buy type
         self._sell_type = {
             "type": "sell",
@@ -59,10 +62,19 @@ class DB:
         self._buy_type["total_price"] = total_price
         self._db.hmset(self._username + "_" + str_time, self._buy_type)
 
+    def get_not_buy_list(self):
+        return self._db.hgetall(self._not_buy_list)
+
+    def add_not_buy_list(self, name):
+        val = self._db.hget(self._not_buy_list, name)
+        if val is None:
+            self._db.hset(self._not_buy_list, name, 1)
+        elif val is b'1':
+            self._db.hset(self._not_buy_list, name, 2)
+            print("종목 ", name, " 은 총 두 번의 손실을 입었으므로, 오늘은 더 이상 구매하지 않습니다.")
+
 
 if __name__ == "__main__":
     test = DB()
     val = test._db.lrange("LuterGS", -31, -1)
-    for data in val:
-        strs = data.decode()
-        test._db.rpop("LuterGS")
+    test.add_buy_data(datetime.datetime.now(), "123456", "테스트", "1", "1000", "1000")
