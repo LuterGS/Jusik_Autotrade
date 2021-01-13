@@ -10,6 +10,30 @@ import constant
 import else_func
 
 
+def timechecker_wait(func):
+    def wrapper(*args):
+        cur_time = time.time()
+        timediff = cur_time - args[0]._saved_time
+        print(cur_time, args[0]._saved_time, timediff)
+        if timediff < 3.6:
+            time.sleep(3.6 - timediff)
+        args[0]._saved_time = time.time()
+        return func(*args)
+    return wrapper
+
+
+def timechecker_instant(func):
+    def wrapper(*args):
+        cur_time = time.time()
+        timediff = args[0]._saved_time - cur_time
+        if timediff < 0.2:
+            time.sleep(0.2 - timediff)
+        args[0]._saved_time = time.time()
+        return func(*args)
+
+    return wrapper
+
+
 class KiwoomHandler:
     REQUESTS = ["잔액요청", "거래량급증요청", "주식구매", "주식판매", "수익률요청", "프로그램재시작", "주식분봉차트조회요청"]
 
@@ -30,22 +54,14 @@ class KiwoomHandler:
             pika.ConnectionParameters(self._url, self._port, self._vhost, self._cred))
 
         # 먼저 윈도우 출력을 받는 큐를 생성 후 작동
-        self._channel = self._connection.channel()
+        self._channel = self._connection.channel()# self._connection.channel()
         self._channel.basic_consume(queue=self._recv_queue, on_message_callback=KiwoomHandler._que_getter,
                                     auto_ack=True)
         self._windows_get = Process(target=self._channel.start_consuming, args=())
         self._windows_get.start()
 
         # 요청 사이의 간격 조정
-        self._saved_time = datetime.datetime.now()
-
-    def _sleep_reqtime(self, sleep_time):
-        cur_time = datetime.datetime.now()
-        diff_time = cur_time - self._saved_time
-        diff_time_seconds = diff_time.seconds + (diff_time.microseconds / 1000000)
-        if diff_time_seconds < sleep_time:
-            time.sleep(sleep_time - diff_time_seconds)
-        self._saved_time = datetime.datetime.now()
+        self._saved_time = time.time()
 
     def _connect_channel(self):
         while True:
@@ -56,14 +72,13 @@ class KiwoomHandler:
                 print("커넥션 에러, retrying")
         return connection, connection.channel()
 
-    def _kiwoom(self, req_num: int, buffer_size=5000, sleep_time=3.5, **kwargs):
+    def _kiwoom(self, req_num: int, buffer_size=5000, **kwargs):
         # 요청한 timestamp 만큼 잠듬
-        self._sleep_reqtime(sleep_time)
 
         # 요청을 받을 때까지 반복문
         while True:
             # 프로세스 생성 및 시작
-            connection, channel = self._connect_channel()
+            channel = self._connection.channel()
             sub_process = Process(target=KiwoomHandler._request_kiwoom,
                                   args=(channel, self._send_queue, self.REQUESTS[req_num], kwargs))
             sub_process.start()
@@ -79,7 +94,7 @@ class KiwoomHandler:
             result_mem.close()
             result_mem.unlink()             # 이후 공유메모리 해제
             
-            connection.close()              # 커넥션 닫음
+            # connection.close()              # 커넥션 닫음
 
             # print("res:", result_value)
 
@@ -111,13 +126,15 @@ class KiwoomHandler:
 
         # Windows에 요청을 보냄 - 응답을 받을 때까지
         channel.basic_publish(exchange='', routing_key=send_queue_name, body=send_data)
-        # print("send_result : ", result)
-        channel.close()
+
 
         # _que_setter가 공유 메모리에 값을 다 쓸 때까지 대기함 (오류를 막기 위해, max 한시간까지 대기함)
         signal.sigtimedwait([signal.SIGUSR1], 20)       # 넉넉하게 20초를 대기함
 
-    @staticmethod
+        # print("send_result : ", result)
+        channel.close()                                 # 대기후 채널 닫음7음
+
+    staticmethod
     def _que_getter(channel_info, deliver_info, properties, value :bytes):
         # 큐 핸들러, 큐에 입력값이 들어오면 어떻게 처리할 것인지를 구성
 
@@ -144,25 +161,30 @@ class KiwoomHandler:
     # 이 부분에 있는 메소드들은 클래스 외부에서도 접근이 가능한 Public 메소드들임
     # 이 부분에 있는 메소드만을 호출함으로써 외부에서 안정적인 호출이 가능하다.
 
-    def get_balance(self, sleep_time=3.5):
-        return self._kiwoom(0, buffer_size=50, sleep_time=sleep_time)
+    @timechecker_wait
+    def get_balance(self):
+        return self._kiwoom(0, buffer_size=50)
 
+    @timechecker_wait
     def get_highest_trade_amount(self, last_min=constant.TRADE_LAST_MIN, market=constant.TRADE_MARKET,
-                                 is_percent=constant.VIEW_AS_PERCENT, is_min=True, sleep_time=3.5):
+                                 is_percent=constant.VIEW_AS_PERCENT, is_min=True):
         if is_min:
             min, last_min = "1", last_min
         else:
             min, last_min = "2", ""
-        return self._kiwoom(1, buffer_size=5000, sleep_time=sleep_time, last_min=str(last_min), market=str(market), is_percent=str(is_percent), min=min)
+        return self._kiwoom(1, buffer_size=5000, last_min=str(last_min), market=str(market), is_percent=str(is_percent), min=min)
 
-    def buy_jusik(self, code, amount, price, sleep_time=0.2):
-        return self._kiwoom(2, buffer_size=10, sleep_time=sleep_time, code=str(code), amount=str(amount), price=str(price))
+    @timechecker_instant
+    def buy_jusik(self, code, amount, price):
+        return self._kiwoom(2, buffer_size=10, code=str(code), amount=str(amount), price=str(price))
 
-    def sell_jusik(self, code, amount, price, sleep_time=0.2):
-        return self._kiwoom(3, buffer_size=10, sleep_time=sleep_time, code=str(code), amount=str(amount), price=str(price))
+    @timechecker_instant
+    def sell_jusik(self, code, amount, price):
+        return self._kiwoom(3, buffer_size=10, code=str(code), amount=str(amount), price=str(price))
 
-    def get_profit_percent(self, sleep_time=3.6):
-        return_value = self._kiwoom(4, buffer_size=1000, sleep_time=sleep_time)
+    @timechecker_wait
+    def get_profit_percent(self):
+        return_value = self._kiwoom(4, buffer_size=1000)
         del return_value[0]
         return return_value
 
@@ -177,20 +199,24 @@ class KiwoomHandler:
         """
         self._kiwoom(5, buffer_size=50, sleep_time=0, time=str(time_))
 
-    def get_past_min_data(self, code, sleep_time=3.6, custom_filename=None):
+    def get_past_min_data(self, code, custom_filename=None):
         """
         6개월치 종목코드에 따른 분봉 과거데이터를 파일에 기록한다.
         156100
         """
+        @timechecker_wait
+        def req_wrapper(savefile, cont="0"):
+            return else_func.write_pdata_to_file(self._kiwoom(6, buffer_size=300000, code=str(code), is_continue=cont), savefile)
+
         if custom_filename is not None:
             filename = custom_filename
         else:
             filename = code + ".txt"
         with open(filename, "w", encoding='utf8') as savefile:
             savefile.write("체결시간,\t현재가,\t거래량,\t시가,\t고가,\t저가,\t수정주가구분,\t수정비율,\t대업종구분,\t소업종구분,\t종목정보,\t수정주가이벤트,\t전일종가\n")
-            savefile = else_func.write_pdata_to_file(self._kiwoom(6, buffer_size=300000, sleep_time=sleep_time, code=str(code), is_continue="0"), savefile)
+            savefile = req_wrapper(savefile, "0")
             for i in range(55):
-                savefile = else_func.write_pdata_to_file(self._kiwoom(6, buffer_size=300000, sleep_time=sleep_time, code=str(code), is_continue="2"), savefile)
+                savefile = req_wrapper(savefile, "2")
             return True
 
 
@@ -202,9 +228,11 @@ class KiwoomHandler:
 
 if __name__ == "__main__":
     test = KiwoomHandler()
-    test.program_restart(10)
-    val = test.get_balance()
-    print(val)
+    # test.program_restart(10)
+    for i in range(10):
+        print(test.get_balance())
+        print(test.get_profit_percent())
+    # print(val)
 
 
 
