@@ -4,6 +4,7 @@ import os
 import datetime
 from multiprocessing import Process, shared_memory
 import pika
+from pika.exceptions import AMQPConnectionError
 
 import constant
 import else_func
@@ -47,7 +48,12 @@ class KiwoomHandler:
         self._saved_time = datetime.datetime.now()
 
     def _connect_channel(self):
-        connection = pika.BlockingConnection(pika.ConnectionParameters(self._url, self._port, self._vhost, self._cred))
+        while True:
+            try:
+                connection = pika.BlockingConnection(pika.ConnectionParameters(self._url, self._port, self._vhost, self._cred))
+                break
+            except AMQPConnectionError:
+                print("커넥션 에러, retrying")
         return connection.channel()
 
     def _kiwoom(self, req_num: int, buffer_size=5000, sleep_time=3.5, **kwargs):
