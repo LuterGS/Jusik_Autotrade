@@ -54,7 +54,7 @@ class KiwoomHandler:
                 break
             except AMQPConnectionError:
                 print("커넥션 에러, retrying")
-        return connection.channel()
+        return connection, connection.channel()
 
     def _kiwoom(self, req_num: int, buffer_size=5000, sleep_time=3.5, **kwargs):
         # 요청한 timestamp 만큼 잠듬
@@ -63,7 +63,7 @@ class KiwoomHandler:
         # 요청을 받을 때까지 반복문
         while True:
             # 프로세스 생성 및 시작
-            channel = self._connect_channel()
+            connection, channel = self._connect_channel()
             sub_process = Process(target=KiwoomHandler._request_kiwoom,
                                   args=(channel, self._send_queue, self.REQUESTS[req_num], kwargs))
             sub_process.start()
@@ -78,6 +78,8 @@ class KiwoomHandler:
             result_value = else_func.byte_to_original(bytes(result_mem.buf), req_num)   # 공유메모리에서 값 읽어들여옴
             result_mem.close()
             result_mem.unlink()             # 이후 공유메모리 해제
+            
+            connection.close()              # 커넥션 닫음
 
             # print("res:", result_value)
 
