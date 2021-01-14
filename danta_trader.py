@@ -104,7 +104,7 @@ class DantaTrader(BasicTrader):
         # 주식 리스트를 가져온 뒤, 손실 리스트는 뺌
         buy_list = self._kiwoom.get_highest_trade_amount()
         for data in not_buy_list:
-            if not_buy_list[data.decode()] == b'2':
+            if not_buy_list[data] == b'2':
                 for i in range(len(buy_list)):
                     if buy_list[i][1] == data.decode():
                         break

@@ -69,12 +69,11 @@ class DB:
         val = self._db.hget(self._not_buy_list, name)
         if val is None:
             self._db.hset(self._not_buy_list, name, 1)
-        elif val is b'1':
+        elif val == b'1':
             self._db.hset(self._not_buy_list, name, 2)
             print("종목 ", name, " 은 총 두 번의 손실을 입었으므로, 오늘은 더 이상 구매하지 않습니다.")
 
 
 if __name__ == "__main__":
     test = DB()
-    val = test._db.lrange("LuterGS", -31, -1)
-    test.add_buy_data(datetime.datetime.now(), "123456", "테스트", "1", "1000", "1000")
+    print(test.get_not_buy_list())

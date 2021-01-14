@@ -1,13 +1,15 @@
 import time
 import signal
 import os
-import datetime
+import warnings
 from multiprocessing import Process, shared_memory
 import pika
 from pika.exceptions import AMQPConnectionError
 
 import constant
 import else_func
+
+warnings.filterwarnings('ignore')
 
 
 def timechecker_wait(func):
@@ -78,7 +80,7 @@ class KiwoomHandler:
         # 요청을 받을 때까지 반복문
         while True:
             # 프로세스 생성 및 시작
-            channel = self._connection.channel()
+            connection, channel = self._connect_channel()
             sub_process = Process(target=KiwoomHandler._request_kiwoom,
                                   args=(channel, self._send_queue, self.REQUESTS[req_num], kwargs))
             sub_process.start()
@@ -94,7 +96,7 @@ class KiwoomHandler:
             result_mem.close()
             result_mem.unlink()             # 이후 공유메모리 해제
             
-            # connection.close()              # 커넥션 닫음
+            connection.close()              # 커넥션 닫음
 
             # print("res:", result_value)
 
@@ -132,10 +134,10 @@ class KiwoomHandler:
         signal.sigtimedwait([signal.SIGUSR1], 20)       # 넉넉하게 20초를 대기함
 
         # print("send_result : ", result)
-        channel.close()                                 # 대기후 채널 닫음7음
+        # channel.close()                                 # 대기후 채널 닫음
 
-    staticmethod
-    def _que_getter(channel_info, deliver_info, properties, value :bytes):
+    @staticmethod
+    def _que_getter(channel_info, deliver_info, properties, value: bytes):
         # 큐 핸들러, 큐에 입력값이 들어오면 어떻게 처리할 것인지를 구성
 
         # 초기에 값을 분리해준다.
