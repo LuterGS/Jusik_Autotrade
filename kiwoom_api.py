@@ -16,7 +16,7 @@ def timechecker_wait(func):
     def wrapper(*args):
         cur_time = time.time()
         timediff = cur_time - args[0]._saved_time
-        print(cur_time, args[0]._saved_time, timediff)
+        # print(cur_time, args[0]._saved_time, timediff)
         if timediff < 3.6:
             time.sleep(3.6 - timediff)
         args[0]._saved_time = time.time()
@@ -191,7 +191,7 @@ class KiwoomHandler:
         return return_value
 
     def program_restart(self, time_: int):
-        self._kiwoom(5, buffer_size=50, sleep_time=0, time=str(time_))
+        self._kiwoom(5, buffer_size=50, time=str(time_))
         time.sleep(time_ + 300)
 
     def program_nosleep_restart(self, time_: int):
@@ -199,7 +199,7 @@ class KiwoomHandler:
         보통의 program_restart는 같이 쉬지만, 이 메소드는 쉬지 않는다.
         적어도, time_ + 60 초가 흐른 뒤에 다시 Windows에 접근할 것을 추천한다 (부팅시간 필요)
         """
-        self._kiwoom(5, buffer_size=50, sleep_time=0, time=str(time_))
+        self._kiwoom(5, buffer_size=50, time=str(time_))
 
     def get_past_min_data(self, code, custom_filename=None):
         """
