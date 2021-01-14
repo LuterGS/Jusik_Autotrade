@@ -17,7 +17,6 @@ type QueueHandler struct {
 	//recvQueue connection과 channel
 	recvQueueConnection *amqp.Connection
 	recvQueueChannel    *amqp.Channel
-	RecvVal             AMQPHandler //recv_queue에서 값을 실시간으로 receiving 하는 go channel
 
 	//sendQueue connection과 channel
 	sendQueueConnection *amqp.Connection
@@ -100,7 +99,7 @@ func (q *QueueHandler) consumeQueue(channel *amqp.Channel, queueName string) {
 	//}(val1)
 }
 
-func (q *QueueHandler) PublishQueue(channel *amqp.Channel, queueName string, value string) string {
+func (q *QueueHandler) publishQueue(channel *amqp.Channel, queueName string, value string) string {
 
 	roomNum := <-q.connectorEmpthChecker
 	value = strconv.Itoa(roomNum) + "|" + value
@@ -129,11 +128,26 @@ func (q *QueueHandler) PublishQueue(channel *amqp.Channel, queueName string, val
 
 func (q *QueueHandler) PublishTest() {
 	for i := 0; i < 30; i++ {
-		q.PublishQueue(q.recvQueueChannel, q.recvQueue, "test"+strconv.Itoa(i))
+		q.publishQueue(q.recvQueueChannel, q.recvQueue, "test"+strconv.Itoa(i))
 	}
 }
 
-func (q *QueueHandler) GetBalance() (int, error) {
-	val := q.PublishQueue(q.sendQueueChannel, q.sendQueue, "잔액요청")
-	return strconv.Atoi(val)
+func (q *QueueHandler) GetBalance() int {
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, "잔액요청")
+	returnVal, err := strconv.Atoi(queueOutput)
+	if err != nil {
+		Timelog("잔액요청이 완료되었지만, 잔액 값이 이상해 숫자 변환에 실패했습니다. 값 : ", returnVal)
+		panic("숫자 변환 오류")
+	}
+	return returnVal
+}
+
+func (q *QueueHandler) GetHighestTrade() string {
+	queueOuptut := q.publishQueue(q.sendQueueChannel, q.sendQueue, "거래량급증요청,15,101,1,1")
+	return queueOuptut
+}
+
+func (q *QueueHandler) GetProfitPercent() string {
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, "수익률요청")
+	return queueOutput
 }

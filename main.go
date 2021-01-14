@@ -19,7 +19,7 @@ func main() {
 	testQueue := test.InitQueueHandler()
 	test.Timelog("reached here")
 
-	val, _ := testQueue.GetBalance()
-	test.Timelog(val)
+	test.Timelog(testQueue.GetBalance())
+	test.Timelog(testQueue.GetProfitPercent())
 
 }
