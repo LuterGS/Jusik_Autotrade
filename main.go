@@ -16,10 +16,18 @@ func main() {
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	testQueue := test.InitQueueHandler()
-	test.Timelog("reached here")
+	/*
+		testQueue := test.InitQueueHandler()
+		test.Timelog("reached here")
 
-	test.Timelog(testQueue.GetBalance())
-	test.Timelog(testQueue.GetProfitPercent())
+		test.Timelog(testQueue.GetBalance())
+		test.Timelog(testQueue.GetProfitPercent())
+		test.Timelog(testQueue.GetHighestTrade())
+	*/
+	//
+	//tester := test.NewDBHandler()
+	//tester.InputTest()
+
+	test.SrcTest()
 
 }
