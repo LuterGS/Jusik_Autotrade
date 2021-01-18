@@ -5,6 +5,10 @@ import (
 	"strings"
 )
 
+func parseTradeJusikInput(tradeType string, code string, amount string, price string) string {
+	return tradeType + "," + code + "," + amount + "," + price
+}
+
 //market은 constant에 있는 MARKET_* 를 참고할 것
 //isPercent는 급증률로 조회할 것인지를, isMin은 몇 분별로 조회할 것인지를 (아닐시 전일 조회) 표기함
 //거래량급증요청시 입력값을 parsing해주는 함수
@@ -30,7 +34,10 @@ func parseHighestRaiseInput(market string, isPercent bool, isMin bool) string {
 }
 
 // Queue에서 받은 데이터의 종류와 값에 따라 올바른 값을 parse해서 넘겨준다.
-func queueOutputToData(dataType string, inputValue string) [][]string {
+func queueOutputToData(rawDataType string, inputValue string) [][]string {
+
+	dataType := strings.Split(rawDataType, ",")[0]
+	//Timelog("ResultVal : ", inputValue)
 
 	//error check
 	if inputValue == "FAIL" {
@@ -48,6 +55,8 @@ func queueOutputToData(dataType string, inputValue string) [][]string {
 	} else if dataType == "수익률요청" {
 		return _profitParse(inputValue)
 	} else if dataType == "프로그램재시작" {
+		return _oneDataParse(inputValue)
+	} else if dataType == "주식구매" || dataType == "주식판매" {
 		return _oneDataParse(inputValue)
 	}
 	return _highestRaiseParse(inputValue)
@@ -81,6 +90,7 @@ func _profitParse(inputValue string) [][]string {
 	outputRawSeperated := strings.Split(inputValue, "/")
 	jusikNum, _ := strconv.Atoi(outputRawSeperated[0])
 	outputSlice := make([][]string, jusikNum)
+
 	for i := range outputSlice {
 		outputSlice[i] = make([]string, 8)
 		outputSlice[i] = strings.Split(outputRawSeperated[i+1], ",")

@@ -2,31 +2,37 @@ package src
 
 import "time"
 
-func mainer() {
+func Mainer() {
 
 	for {
-		curTime, curTimer := setCurTimer()
-		if curTime == 0 { // 현재 시간이 점검전, 장마감 이후일 때
+		curTimeChunk, curTimer := setCurTimer()
+		if curTimeChunk == 0 { // 현재 시간이 점검전, 장마감 이후일 때
 			Timelog("현재 점검전, 장마감 이후입니다.")
 
 			<-curTimer.C //Timer 울릴 때까지 대기
 			curTimer.Stop()
-		} else if curTime == 1 { // 현재 시간이 점검 시간일 때
+		} else if curTimeChunk == 1 { // 현재 시간이 점검 시간일 때
 			Timelog("현재 점검중입니다. 프로그램도 잠시 쉽니다.")
+
+			curTime := time.Now()
+			estimateTime := time.Date(curTime.Year(), curTime.Month(), curTime.Day(), SIG_B_HOUR, SIG_B_MIN, 0, 0, curTime.Location())
+			timeDiff := int(estimateTime.Sub(curTime).Round(time.Second) / time.Second)
+
+			restarter := NewQueueHandler()
+			restarter.ProgramRestart(timeDiff)
 
 			<-curTimer.C
 			curTimer.Stop()
-		} else if curTime == 2 { // 현재 시간이 점검 직후, 단타 이전 시간일 때
+		} else if curTimeChunk == 2 { // 현재 시간이 점검 직후, 단타 이전 시간일 때
 			Timelog("현재 점검 직후, 단타 이전입니다.")
 
 			<-curTimer.C
 			curTimer.Stop()
-		} else if curTime == 3 { // 현재 시간이 단타알고리즘 시간일 때
+		} else if curTimeChunk == 3 { // 현재 시간이 단타알고리즘 시간일 때
 			Timelog("현재 단타알고리즘 시간입니다.")
-
-			<-curTimer.C
-			curTimer.Stop()
-		} else if curTime == 4 { // 현재 시간이 AI 트레이더 시간일 때
+			danta := NewDantaTrader(curTimer)
+			danta.trade()
+		} else if curTimeChunk == 4 { // 현재 시간이 AI 트레이더 시간일 때
 			Timelog("현재 AI 트레이더 시간입니다.")
 
 			<-curTimer.C
@@ -49,7 +55,7 @@ func setCurTimer() (int, *time.Timer) {
 			return i, timer
 		}
 	}
-	//만약 지금이 장마감 이후 시간일 때
+	//만약 지금이 장마감 이후 ~ 24:00 이전 시간일 때
 	estimateTime := time.Date(curTime.Year(), curTime.Month(), curTime.Day()+1, sigHour[0], sigMin[0], 0, 0, curTime.Location())
 	timeDiff := estimateTime.Sub(curTime)
 	timer := time.NewTimer(timeDiff)

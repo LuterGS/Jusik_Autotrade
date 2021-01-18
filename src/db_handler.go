@@ -19,9 +19,10 @@ type DBHandler struct {
 	redisCtx context.Context
 
 	//기타 프로그램이 지정하는 값
-	sellType   map[string]interface{}
-	buyType    map[string]interface{}
-	notBuyList string
+	sellType    map[string]interface{}
+	buyType     map[string]interface{}
+	notBuyList  string
+	todayProfit string
 }
 
 func NewDBHandler() *DBHandler {
@@ -60,6 +61,7 @@ func NewDBHandler() *DBHandler {
 	dbHandler.buyType["total_price"] = "total_price"
 
 	dbHandler.notBuyList = "not_buy_list"
+	dbHandler.todayProfit = "today_profit"
 
 	return &dbHandler
 }
@@ -75,27 +77,49 @@ func (d *DBHandler) connectRedis() *redis.Client {
 	return client
 }
 
-func (d *DBHandler) addOrderData() string {
+func (d *DBHandler) editCurProfit(profitPrice string) {
+	curProfitVal := d.redis.Get(d.redisCtx, d.todayProfit).Val() //비어있으면 "" (키가 없으면), 아니면 value값 return
+	if curProfitVal == "" {
+		d.redis.Set(d.redisCtx, d.todayProfit, profitPrice, 0)
+	}
+	curProfitInt, _ := strconv.Atoi(curProfitVal)
+	profitPriceInt, _ := strconv.Atoi(profitPrice)
+	d.redis.Set(d.redisCtx, d.todayProfit, curProfitInt+profitPriceInt, 0)
+}
+
+func (d *DBHandler) getCurProfit() int {
+	curProfitVal := d.redis.Get(d.redisCtx, d.todayProfit).Val()
+	go d.redis.Set(d.redisCtx, d.todayProfit, 0, 0)
+	curProfitValInt, _ := strconv.Atoi(curProfitVal)
+	return curProfitValInt
+}
+
+func (d *DBHandler) addOrderData(channel chan string) {
 
 	curTime := getCurTimeString()
-	d.redis.RPush(d.redisCtx, d.user, curTime)
-	return curTime
+	go d.redis.RPush(d.redisCtx, d.user, curTime)
+	channel <- curTime
 }
 
 func (d *DBHandler) addBuyData(code string, name string, amount string, price string, totalPrice string) {
 
-	curTime := d.addOrderData()
+	curTime := make(chan string, 1)
+	defer close(curTime)
+	go d.addOrderData(curTime)
 	d.buyType["code"] = code
 	d.buyType["name"] = name
 	d.buyType["amount"] = amount
 	d.buyType["price"] = price
 	d.buyType["total_price"] = totalPrice
-	d.redis.HMSet(d.redisCtx, curTime, d.buyType)
+	d.redis.HMSet(d.redisCtx, <-curTime, d.buyType)
 }
 
 func (d *DBHandler) addSellData(code string, name string, amount string, price string, totalPrice string, profitPercent string, profitTotalPrice string) {
 
-	curTime := d.addOrderData()
+	curTime := make(chan string, 1)
+	defer close(curTime)
+	go d.addOrderData(curTime)
+	go d.editCurProfit(profitTotalPrice)
 	d.sellType["code"] = code
 	d.sellType["name"] = name
 	d.sellType["amount"] = amount
@@ -103,7 +127,7 @@ func (d *DBHandler) addSellData(code string, name string, amount string, price s
 	d.sellType["total_price"] = totalPrice
 	d.sellType["profit_percent"] = profitPercent
 	d.sellType["profit_price"] = profitTotalPrice
-	d.redis.HMSet(d.redisCtx, curTime, d.sellType)
+	d.redis.HMSet(d.redisCtx, <-curTime, d.sellType)
 }
 
 func (d *DBHandler) getNotBuyList() []string {

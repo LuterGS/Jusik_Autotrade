@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -39,18 +40,17 @@ func timeSleep(timeVal chan int64, timeout float32) {
 	curTime := time.Now().UnixNano()
 	savedTime := <-timeVal
 	timeDiff := int(curTime - savedTime)
-	Timelog("curTime : ", curTime, "\tsavedTime : ", savedTime, "\ttimeDiff : ", timeDiff)
+	//Timelog("curTime : ", curTime, "\tsavedTime : ", savedTime, "\ttimeDiff : ", timeDiff)
 
 	if timeDiff < 0 {
-		Timelog("sleepTime1 : ", time.Duration(int(timeout*1000000000)))
+		//Timelog("sleepTime1 : ", time.Duration(int(timeout*1000000000)))
 		time.Sleep(time.Duration(int(timeout * 1000000000)))
 	} else if timeDiff < int(timeout*1000000000) {
 		sleepTime := time.Duration(int(timeout*1000000000) - timeDiff)
-		Timelog("sleepTime2 : ", sleepTime)
+		//Timelog("sleepTime2 : ", sleepTime)
 		time.Sleep(sleepTime)
 	}
 	saveTime := time.Now().UnixNano()
-	Timelog("will save time : ", saveTime/1000000000, saveTime)
 
 	go func() { timeVal <- saveTime }()
 }
@@ -61,14 +61,47 @@ func getCurTimeString() string {
 	return replacer.Replace(curTime)[:len(curTime)-8]
 }
 
+func slice2dPrinter(value [][]string) {
+	for d := range value {
+		Timelog(value[d])
+	}
+}
+
 func SrcTest() {
 
-	test2 := NewDBHandler()
-	//Timelog(test.ProgramRestart(10))
-	//Timelog(test.GetHighestTrade(MARKET_KOSPI, true, true))
-	//Timelog(test.GetProfitPercent())
-	//Timelog(getCurTimeString())
+	//db := NewDBHandler()
+	//db.editCurProfit("1234")
 
-	test3 := NewDantaTrader()
-	test3.getRecommended(test2.getNotBuyList(), nil)
+	var strtest = []string{"1", "2"}
+
+	curtime1 := time.Now()
+	outputSlice := make([][]string, 4)
+	var waitgroup sync.WaitGroup
+	waitgroup.Add(4)
+
+	for i := range outputSlice {
+		i := i
+		go func() {
+			outputSlice[i] = make([]string, 2)
+			outputSlice[i] = strtest
+			waitgroup.Done()
+		}()
+	}
+	waitgroup.Wait()
+
+	fmt.Println(time.Now().Sub(curtime1))
+
+	curtime2 := time.Now()
+
+	slice2 := make([][]string, 4)
+	for i := range slice2 {
+		slice2[i] = make([]string, 2)
+		slice2[i] = strtest
+	}
+
+	fmt.Println(time.Now().Sub(curtime2))
+
+	fmt.Println(outputSlice)
+
+	os.Exit(1)
 }

@@ -36,15 +36,12 @@ func NewQueueHandler() *QueueHandler {
 
 	// 파일에서 설정값을 읽어들여와 저장함
 	getFileVal := readFromFile("/setting/" + MQ_SETTING_FILE)
-	Timelog(getFileVal)
 	queueHandler.url = getFileVal["MQ_URL"]
 	queueHandler.port = getFileVal["MQ_PORT"]
 	queueHandler.vhost = getFileVal["MQ_VHOST"]
 	queueHandler.cred = getFileVal["MQ_ID"] + ":" + getFileVal["MQ_PW"]
 	queueHandler.sendQueue = getFileVal["MQ_OUT_QUEUE"]
 	queueHandler.recvQueue = getFileVal["MQ_IN_QUEUE"]
-
-	Timelog(queueHandler.cred)
 
 	//sender와 consumer를 잇는 connector 설정
 	queueHandler.connectorEmpthChecker = make(chan int)
@@ -103,12 +100,6 @@ func (q *QueueHandler) consumeQueue(channel *amqp.Channel, queueName string) {
 		}
 		q.connector[roomNum] <- bytes.Trim(receiveVal[1], "\x00")
 	}
-
-	//go func(test <- chan amqp.Delivery){
-	//	for d := range test{
-	//		timelog(d.Body)
-	//	}
-	//}(val1)
 }
 
 func (q *QueueHandler) publishQueue(channel *amqp.Channel, queueName string, value string, timeout float32) [][]string {
@@ -136,10 +127,29 @@ func (q *QueueHandler) publishQueue(channel *amqp.Channel, queueName string, val
 		}
 		Timelog("send to " + queueName + ", send " + passValue + " complete")
 
+		//Timer와 callback을 이용해서 20초 이상 요청이 안 올 시 ""값을 넘기도록 함
+		queueData := ""
+		isBreak := false
+		timer := time.NewTimer(time.Second * 20)
+		for {
+			select {
+			case queueReceived := <-q.connector[roomNum]:
+				queueData = string(queueReceived)
+				isBreak = true
+			case <-timer.C:
+				isBreak = true
+			default:
+			}
+			if isBreak {
+				timer.Stop()
+				break
+			}
+		}
+
 		// 데이터를 받아온 뒤에야 빈 방이 있다고 다시 알려줌
-		receiveVal := queueOutputToData(value, string(<-q.connector[roomNum]))
+		receiveVal := queueOutputToData(value, queueData)
 		go func() { q.connectorEmpthChecker <- roomNum }()
-		Timelog("receiveVal ", receiveVal)
+		//Timelog("receiveVal ", receiveVal)
 
 		// 이후 데이터가 잘못되면 재시도, 아니면 정상 값을 return
 		if receiveVal != nil {
@@ -148,12 +158,6 @@ func (q *QueueHandler) publishQueue(channel *amqp.Channel, queueName string, val
 		Timelog("Failed To Receive Data")
 	}
 
-}
-
-func (q *QueueHandler) PublishTest() {
-	for i := 0; i < 30; i++ {
-		q.publishQueue(q.recvQueueChannel, q.recvQueue, "test"+strconv.Itoa(i), 3.6)
-	}
 }
 
 func (q *QueueHandler) GetBalance() int {
@@ -178,10 +182,30 @@ func (q *QueueHandler) GetProfitPercent() [][]string {
 
 func (q *QueueHandler) ProgramRestart(waitTime int) bool {
 	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, "프로그램재시작,"+strconv.Itoa(waitTime), 0.0)
-	time.Sleep(time.Second * time.Duration(waitTime+10)) // 프로그램 재시작 후에 얼마나 더 기다릴것인지, 현재는 10초로 설정이지만 더 늘려야 함
+	time.Sleep(time.Second * time.Duration(waitTime+300)) // 프로그램 재시작 후에 얼마나 더 기다릴것인지, 현재는 10초로 설정이지만 더 늘려야 함
 	if queueOutput[0][0] == "RESTART" {
 		return true
 	} else {
 		return false
 	}
+}
+
+func (q *QueueHandler) BuyJusik(code string, amount string, price string) int {
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseTradeJusikInput("주식구매", code, amount, price), 0.2)
+	returnVal, err := strconv.Atoi(queueOutput[0][0])
+	if err != nil {
+		Timelog("주식 구매가 완료되었지만, 결과값을 Parsing중 오류가 발생했습니다. 값 : ", returnVal)
+		panic("숫자 변환 오류")
+	}
+	return returnVal
+}
+
+func (q *QueueHandler) SellJusik(code string, amount string, price string) int {
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseTradeJusikInput("주식판매", code, amount, price), 0.2)
+	returnVal, err := strconv.Atoi(queueOutput[0][0])
+	if err != nil {
+		Timelog("주식 판매가 완료되었지만, 결과값을 Parsing중 오류가 발생했습니다. 값 : ", returnVal)
+		panic("숫자 변환 오류")
+	}
+	return returnVal
 }

@@ -29,5 +29,6 @@ func main() {
 	//tester.InputTest()
 
 	test.SrcTest()
+	test.Mainer()
 
 }
