@@ -24,8 +24,9 @@ type QueueHandler struct {
 	sendQueueChannel    *amqp.Channel
 
 	//sender와 consumer를 이어주는 channel들과, 해당 channel의 빈 방을 알려주는 channel 생성
-	connector             [10]chan []byte
+	connector             [10]chan string
 	connectorEmpthChecker chan int
+	differ                int
 
 	//요청당 Timeout 설정
 	timeout chan int64
@@ -44,12 +45,16 @@ func NewQueueHandler() *QueueHandler {
 	queueHandler.recvQueue = getFileVal["MQ_IN_QUEUE"]
 
 	//sender와 consumer를 잇는 connector 설정
-	queueHandler.connectorEmpthChecker = make(chan int)
+	queueHandler.connectorEmpthChecker = make(chan int, 10)
 	for i := 0; i < 10; i++ {
-		queueHandler.connector[i] = make(chan []byte, 1)
+		queueHandler.connector[i] = make(chan string, 1)
 		i := i
 		go func() { queueHandler.connectorEmpthChecker <- i }()
 	}
+	val := time.Now().Unix()
+	Timelog(val)
+	Timelog(int(val))
+	queueHandler.differ = int(time.Now().Unix()) * 10
 	Timelog("setting connector complete")
 
 	//recvQueue, sendQueue를 받는 connection 및 channel 생성 및 return
@@ -86,19 +91,23 @@ func (q *QueueHandler) getConnection() (*amqp.Connection, *amqp.Channel) {
 func (q *QueueHandler) consumeQueue(channel *amqp.Channel, queueName string) {
 
 	//Timelog(queueName)
-
 	val1, _ := channel.Consume(queueName, "", true, true, true, false, nil)
 	amqpHandler := AMQPHandler{queDelivery: val1}
 
 	for {
 		receiveVal := bytes.Split(amqpHandler.GetFromQueue(), []byte("|"))
-		//Timelog(receiveVal)
 		roomNum, err := strconv.Atoi(string(receiveVal[0]))
+		roomNum = roomNum - q.differ
 		if err != nil {
 			Timelog("channel 숫자 변환에 오류가 발생했습니다. 프로그램을 종료합니다.")
 			panic("숫자 변환 오류")
 		}
-		q.connector[roomNum] <- bytes.Trim(receiveVal[1], "\x00")
+
+		if roomNum > 9 {
+			Timelog("현재 프로그램에서 Publish한 값이 아니므로 무시합니다.")
+		} else {
+			q.connector[roomNum] <- string(receiveVal[1])
+		}
 	}
 }
 
@@ -107,7 +116,7 @@ func (q *QueueHandler) publishQueue(channel *amqp.Channel, queueName string, val
 	//timeout에 따라 정해진 시간만큼 timeout 해줌
 	for {
 		roomNum := <-q.connectorEmpthChecker
-		passValue := strconv.Itoa(roomNum) + "|" + value
+		passValue := strconv.Itoa(roomNum+q.differ) + "|" + value
 
 		timeSleep(q.timeout, timeout)
 
@@ -125,7 +134,7 @@ func (q *QueueHandler) publishQueue(channel *amqp.Channel, queueName string, val
 			Timelog("Queue : " + queueName + "  를 Publishing하는 과정에서 Error 발생")
 			panic("Queue publishing 과정 중 문제 발생")
 		}
-		Timelog("send to " + queueName + ", send " + passValue + " complete")
+		//Timelog("send to " + queueName + ", send " + passValue + " complete")
 
 		//Timer와 callback을 이용해서 20초 이상 요청이 안 올 시 ""값을 넘기도록 함
 		queueData := ""
@@ -133,8 +142,8 @@ func (q *QueueHandler) publishQueue(channel *amqp.Channel, queueName string, val
 		timer := time.NewTimer(time.Second * 20)
 		for {
 			select {
-			case queueReceived := <-q.connector[roomNum]:
-				queueData = string(queueReceived)
+			case data := <-q.connector[roomNum]:
+				queueData = data
 				isBreak = true
 			case <-timer.C:
 				isBreak = true
@@ -148,11 +157,10 @@ func (q *QueueHandler) publishQueue(channel *amqp.Channel, queueName string, val
 
 		// 데이터를 받아온 뒤에야 빈 방이 있다고 다시 알려줌
 		receiveVal := queueOutputToData(value, queueData)
-		go func() { q.connectorEmpthChecker <- roomNum }()
-		//Timelog("receiveVal ", receiveVal)
+		q.connectorEmpthChecker <- roomNum
 
 		// 이후 데이터가 잘못되면 재시도, 아니면 정상 값을 return
-		if receiveVal != nil {
+		if receiveVal[0][0] != "ERROR" {
 			return receiveVal
 		}
 		Timelog("Failed To Receive Data")
@@ -195,7 +203,6 @@ func (q *QueueHandler) BuyJusik(code string, amount string, price string) int {
 	returnVal, err := strconv.Atoi(queueOutput[0][0])
 	if err != nil {
 		Timelog("주식 구매가 완료되었지만, 결과값을 Parsing중 오류가 발생했습니다. 값 : ", returnVal)
-		panic("숫자 변환 오류")
 	}
 	return returnVal
 }
@@ -205,7 +212,14 @@ func (q *QueueHandler) SellJusik(code string, amount string, price string) int {
 	returnVal, err := strconv.Atoi(queueOutput[0][0])
 	if err != nil {
 		Timelog("주식 판매가 완료되었지만, 결과값을 Parsing중 오류가 발생했습니다. 값 : ", returnVal)
-		panic("숫자 변환 오류")
 	}
 	return returnVal
+}
+
+func (q *QueueHandler) Test() {
+
+	for i := 0; i < 10; i++ {
+		Timelog(<-q.connectorEmpthChecker)
+	}
+
 }

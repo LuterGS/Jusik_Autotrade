@@ -111,7 +111,7 @@ func (d *DBHandler) addBuyData(code string, name string, amount string, price st
 	d.buyType["amount"] = amount
 	d.buyType["price"] = price
 	d.buyType["total_price"] = totalPrice
-	d.redis.HMSet(d.redisCtx, <-curTime, d.buyType)
+	d.redis.HMSet(d.redisCtx, d.user+"_"+<-curTime, d.buyType)
 }
 
 func (d *DBHandler) addSellData(code string, name string, amount string, price string, totalPrice string, profitPercent string, profitTotalPrice string) {
@@ -127,7 +127,7 @@ func (d *DBHandler) addSellData(code string, name string, amount string, price s
 	d.sellType["total_price"] = totalPrice
 	d.sellType["profit_percent"] = profitPercent
 	d.sellType["profit_price"] = profitTotalPrice
-	d.redis.HMSet(d.redisCtx, <-curTime, d.sellType)
+	d.redis.HMSet(d.redisCtx, d.user+"_"+<-curTime, d.sellType)
 }
 
 func (d *DBHandler) getNotBuyList() []string {

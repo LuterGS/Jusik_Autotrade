@@ -37,15 +37,14 @@ func parseHighestRaiseInput(market string, isPercent bool, isMin bool) string {
 func queueOutputToData(rawDataType string, inputValue string) [][]string {
 
 	dataType := strings.Split(rawDataType, ",")[0]
-	//Timelog("ResultVal : ", inputValue)
 
 	//error check
 	if inputValue == "FAIL" {
 		Timelog("키움증권 요청이 실패했습니다. 재시도합니다.")
-		return nil
+		return _oneDataParse("ERROR")
 	} else if inputValue == "" {
 		Timelog("Windows Queue 요청이 실패했습니다. 재시도합니다.")
-		return nil
+		return _oneDataParse("ERROR")
 	}
 
 	if dataType == "거래량급증요청" {
