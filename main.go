@@ -28,7 +28,7 @@ func main() {
 	//tester := test.NewDBHandler()
 	//tester.InputTest()
 
-	test.SrcTest()
+	//test.SrcTest()
 	test.Mainer()
 
 }

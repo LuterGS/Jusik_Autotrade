@@ -35,8 +35,9 @@ func readFromFile(fileName string) map[string]string {
 	return fileMap
 }
 
-func timeSleep(timeVal chan int64, timeout float32) {
+func timeSleep(timeVal chan int64, timeoutSec float32) {
 
+	timeoutMiliSec := timeoutSec * 1000
 	curTime := time.Now().UnixNano()
 	savedTime := <-timeVal
 	timeDiff := int(curTime - savedTime)
@@ -44,11 +45,14 @@ func timeSleep(timeVal chan int64, timeout float32) {
 
 	if timeDiff < 0 {
 		//Timelog("sleepTime1 : ", time.Duration(int(timeout*1000000000)))
-		time.Sleep(time.Duration(int(timeout * 1000000000)))
-	} else if timeDiff < int(timeout*1000000000) {
-		sleepTime := time.Duration(int(timeout*1000000000) - timeDiff)
+		// TODO : 라즈베리 파이에서 시간이 다르게 Sleep되는 관계로, 확인이 필요함
+		time.Sleep(time.Millisecond * time.Duration(timeoutMiliSec))
+	} else if time.Duration(timeDiff) < time.Duration(timeoutMiliSec)*time.Millisecond {
+		time.Sleep(time.Millisecond*time.Duration(timeoutMiliSec) - time.Duration(timeDiff))
+
+		//sleepTime := time.Duration(int(timeout*1000000000) - timeDiff)
 		//Timelog("sleepTime2 : ", sleepTime)
-		time.Sleep(sleepTime)
+		//time.Sleep(sleepTime)
 	}
 	saveTime := time.Now().UnixNano()
 
