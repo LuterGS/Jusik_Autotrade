@@ -27,6 +27,7 @@ func readFromFile(fileName string) map[string]string {
 	var fileMap map[string]string
 	fileMap = make(map[string]string)
 	lines := strings.Split(string(dbData), "\n")
+	//Timelog(lines)
 	for i := 0; i < len(lines); i++ {
 		singleLine := strings.Split(lines[i], "=")
 		fileMap[singleLine[0]] = singleLine[1]

@@ -129,10 +129,9 @@ func (d *DantaTrader) isEnd() bool {
 
 func (d *DantaTrader) trade() {
 
-	notBuyList := d.db.getNotBuyList()
-	Timelog(notBuyList)
 	for {
 		curProfitJusiks := d.kiwoom.GetProfitPercent()
+		notBuyList := d.db.getNotBuyList()
 
 		//매도로 인해 현재 종목수가 부족할 때
 		if len(curProfitJusiks) < TOTAL_JONGMOK_NUM {

@@ -135,7 +135,8 @@ func (d *DBHandler) getNotBuyList() []string {
 	notBuyMap := d.redis.HGetAll(d.redisCtx, d.notBuyList).Val()
 	var notBuyList []string
 	for key, val := range notBuyMap {
-		if val == "2" {
+		valInt, _ := strconv.Atoi(val)
+		if valInt > 1 {
 			notBuyList = append(notBuyList, key)
 		}
 	}
