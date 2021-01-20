@@ -51,11 +51,10 @@ func NewQueueHandler() *QueueHandler {
 		i := i
 		go func() { queueHandler.connectorEmpthChecker <- i }()
 	}
-	val := time.Now().Unix()
-	Timelog(val)
-	Timelog(int(val))
-	queueHandler.differ = int(time.Now().Unix()) * 10
-	Timelog("setting connector complete")
+	rawVal := strconv.Itoa(int(time.Now().Unix()))[5:]
+	val, _ := strconv.Atoi(rawVal)
+	queueHandler.differ = val * 10
+	Timelog("setting connector complete, differ : ", val)
 
 	//recvQueue, sendQueue를 받는 connection 및 channel 생성 및 return
 	queueHandler.recvQueueConnection, queueHandler.recvQueueChannel = queueHandler.getConnection()
@@ -169,7 +168,7 @@ func (q *QueueHandler) publishQueue(channel *amqp.Channel, queueName string, val
 }
 
 func (q *QueueHandler) GetBalance() int {
-	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, "잔액요청", 3.6)
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, qrBalance, 3.6)
 	returnVal, err := strconv.Atoi(queueOutput[0][0])
 	if err != nil {
 		Timelog("잔액요청이 완료되었지만, 잔액 값이 이상해 숫자 변환에 실패했습니다. 값 : ", returnVal)
@@ -184,22 +183,23 @@ func (q *QueueHandler) GetHighestTrade(market string, isPercent bool, isMin bool
 }
 
 func (q *QueueHandler) GetProfitPercent() [][]string {
-	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, "수익률요청", 3.6)
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, qrGetProfit, 3.6)
 	return queueOutput
 }
 
-func (q *QueueHandler) ProgramRestart(waitTime int) bool {
-	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, "프로그램재시작,"+strconv.Itoa(waitTime), 0.0)
-	time.Sleep(time.Second * time.Duration(waitTime+300)) // 프로그램 재시작 후에 얼마나 더 기다릴것인지, 현재는 10초로 설정이지만 더 늘려야 함
-	if queueOutput[0][0] == "RESTART" {
-		return true
-	} else {
-		return false
+func (q *QueueHandler) ProgramRestart(waitTime int) int {
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, qrProgramRestart+","+strconv.Itoa(waitTime), 0.0)
+	time.Sleep(time.Second * time.Duration(waitTime+30)) // 프로그램 재시작 후에 얼마나 더 기다릴것인지, 현재는 10초로 설정이지만 더 늘려야 함
+	sleepTime, err := strconv.Atoi(queueOutput[0][0])
+	if err != nil {
+		Timelog("프로그램 재시작 시간을 Parsing 하던 중 오류가 발생했습니다.")
+		panic("Parsing 오류")
 	}
+	return sleepTime
 }
 
 func (q *QueueHandler) BuyJusik(code string, amount string, price string) int {
-	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseTradeJusikInput("주식구매", code, amount, price), 0.2)
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseTradeJusikInput(qrBuyJusik, code, amount, price, qrJijungGaTrade), 0.2)
 	returnVal, err := strconv.Atoi(queueOutput[0][0])
 	if err != nil {
 		Timelog("주식 구매가 완료되었지만, 결과값을 Parsing중 오류가 발생했습니다. 값 : ", returnVal)
@@ -208,12 +208,17 @@ func (q *QueueHandler) BuyJusik(code string, amount string, price string) int {
 }
 
 func (q *QueueHandler) SellJusik(code string, amount string, price string) int {
-	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseTradeJusikInput("주식판매", code, amount, price), 0.2)
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseTradeJusikInput(qrSellJusik, code, amount, price, qrJijungGaTrade), 0.2)
 	returnVal, err := strconv.Atoi(queueOutput[0][0])
 	if err != nil {
 		Timelog("주식 판매가 완료되었지만, 결과값을 Parsing중 오류가 발생했습니다. 값 : ", returnVal)
 	}
 	return returnVal
+}
+
+func (q *QueueHandler) GetJogunSik(jogunsikNum int) [][]string {
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseJogunSik(jogunsikNum), 3.6)
+	return queueOutput
 }
 
 func (q *QueueHandler) Test() {

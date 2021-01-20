@@ -5,8 +5,47 @@ import (
 	"strings"
 )
 
-func parseTradeJusikInput(tradeType string, code string, amount string, price string) string {
-	return tradeType + "," + code + "," + amount + "," + price
+type tradeBuyType string
+type parser func(string) [][]string
+
+const (
+	qrBalance         string = "0"
+	qrGetPastMinData  string = "1"
+	qrGetHighestRaise string = "2"
+	qrBuyJusik        string = "3"
+	qrSellJusik       string = "4"
+	qrGetProfit       string = "5"
+	qrGetJogunsik     string = "6"
+	qrProgramRestart  string = "7"
+
+	qrJijungGaTrade tradeBuyType = "00"
+	qrSijangGaTrade tradeBuyType = "03"
+)
+
+func parseFunc() []parser {
+	return []parser{
+		_oneDataParse,        //0
+		_highestRaiseParse,   //1
+		_highestRaiseParse,   //2
+		_oneDataParse,        //3
+		_oneDataParse,        //4
+		_profitParse,         //5
+		_parseJogunsik,       //6
+		_parseProgramRestart, //7
+	}
+}
+
+func parseTradeJusikInput(tradeType string, code string, amount string, price string, howToTrade tradeBuyType) string {
+	if tradeType == qrBuyJusik {
+		return tradeType + ",1," + code + "," + amount + "," + price + "," + string(howToTrade)
+	} else {
+		return tradeType + ",2," + code + "," + amount + "," + price + "," + string(howToTrade)
+	}
+}
+
+func parseJogunSik(jogunsikNum int) string {
+	jogunsikStr := strconv.Itoa(jogunsikNum)
+	return qrGetJogunsik + "," + jogunsikStr
 }
 
 //market은 constant에 있는 MARKET_* 를 참고할 것
@@ -29,14 +68,12 @@ func parseHighestRaiseInput(market string, isPercent bool, isMin bool) string {
 		lastMinString = ""
 	}
 
-	inputValue := "거래량급증요청," + lastMinString + "," + market + "," + isPercentString + "," + isMinString
+	inputValue := qrGetHighestRaise + "," + lastMinString + "," + market + "," + isPercentString + "," + isMinString
 	return inputValue
 }
 
 // Queue에서 받은 데이터의 종류와 값에 따라 올바른 값을 parse해서 넘겨준다.
-func queueOutputToData(rawDataType string, inputValue string) [][]string {
-
-	dataType := strings.Split(rawDataType, ",")[0]
+func queueOutputToData(rawFuncNum string, inputValue string) [][]string {
 
 	//error check
 	if inputValue == "FAIL" {
@@ -47,18 +84,14 @@ func queueOutputToData(rawDataType string, inputValue string) [][]string {
 		return _oneDataParse("ERROR")
 	}
 
-	if dataType == "거래량급증요청" {
-		return _highestRaiseParse(inputValue)
-	} else if dataType == "잔액요청" {
-		return _oneDataParse(inputValue)
-	} else if dataType == "수익률요청" {
-		return _profitParse(inputValue)
-	} else if dataType == "프로그램재시작" {
-		return _oneDataParse(inputValue)
-	} else if dataType == "주식구매" || dataType == "주식판매" {
-		return _oneDataParse(inputValue)
+	funcNumInt, err := strconv.Atoi(strings.Split(rawFuncNum, ",")[0])
+	if err != nil {
+		Timelog("숫자 변환시 에러가 발생했습니다.")
+		panic("숫자 변환시 에러가 발생했습니다.")
 	}
-	return _highestRaiseParse(inputValue)
+
+	parseFunc := parseFunc()
+	return parseFunc[funcNumInt](inputValue)
 }
 
 func _oneDataParse(inputValue string) [][]string {
@@ -96,4 +129,18 @@ func _profitParse(inputValue string) [][]string {
 	}
 	//Timelog(outputSlice)
 	return outputSlice
+}
+
+// 2차배열이지만, [0][n] 크기의 배열이다.
+func _parseJogunsik(inputValue string) [][]string {
+
+	outputSeperated := strings.Split(inputValue, ",")
+	outputSlice := make([][]string, 1)
+	outputSlice[0] = outputSeperated
+	return outputSlice
+}
+
+// !1234 같이, 느낌표 뒤에 숫자가 있는 것을 걸러낸다.
+func _parseProgramRestart(inputValue string) [][]string {
+	return _oneDataParse(inputValue[1:])
 }

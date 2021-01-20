@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -76,37 +76,16 @@ func SrcTest() {
 
 	//db := NewDBHandler()
 	//db.editCurProfit("1234")
+	test2 := strconv.Itoa(int(time.Now().Unix()))
+	Timelog(test2)
+	test2 = test2[4:]
+	Timelog(test2)
+	test3, _ := strconv.Atoi(test2)
+	Timelog(test3)
 
-	var strtest = []string{"1", "2"}
-
-	curtime1 := time.Now()
-	outputSlice := make([][]string, 4)
-	var waitgroup sync.WaitGroup
-	waitgroup.Add(4)
-
-	for i := range outputSlice {
-		i := i
-		go func() {
-			outputSlice[i] = make([]string, 2)
-			outputSlice[i] = strtest
-			waitgroup.Done()
-		}()
-	}
-	waitgroup.Wait()
-
-	fmt.Println(time.Now().Sub(curtime1))
-
-	curtime2 := time.Now()
-
-	slice2 := make([][]string, 4)
-	for i := range slice2 {
-		slice2[i] = make([]string, 2)
-		slice2[i] = strtest
-	}
-
-	fmt.Println(time.Now().Sub(curtime2))
-
-	fmt.Println(outputSlice)
+	test := NewQueueHandler()
+	Timelog(test.GetBalance())
 
 	os.Exit(1)
+
 }

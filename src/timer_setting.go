@@ -48,7 +48,7 @@ func setCurTimer() (int, *time.Timer) {
 	sigMin := [5]int{SIG_A_MIN, SIG_B_MIN, SIG_C_MIN, SIG_D_MIN, SIG_E_MIN}
 
 	for i := 0; i < len(sigHour); i++ {
-		if (curTime.Hour() < sigHour[i]) || (curTime.Hour() == sigHour[i] && curTime.Minute() <= sigMin[i]) {
+		if (curTime.Hour() < sigHour[i]) || (curTime.Hour() == sigHour[i] && curTime.Minute() < sigMin[i]) {
 			estimateTime := time.Date(curTime.Year(), curTime.Month(), curTime.Day(), sigHour[i], sigMin[i], 0, 0, curTime.Location())
 			timeDiff := estimateTime.Sub(curTime)
 			timer := time.NewTimer(timeDiff)
