@@ -32,18 +32,20 @@ func NewDantaTrader(checkEnd *time.Timer) *DantaTrader {
 
 func (d *DantaTrader) SellJusik(jusikData []string) {
 
-	go d.db.addSellData(jusikData[0], jusikData[1], jusikData[2], jusikData[7], jusikData[4], jusikData[6], jusikData[5])
-	d.kiwoom.SellJusik(jusikData[0], jusikData[2], jusikData[7])
+	code := rawCodeToCode(jusikData[0])
+	go d.db.addSellData(code, jusikData[1], jusikData[2], jusikData[7], jusikData[4], jusikData[6], jusikData[5])
+	d.kiwoom.SellJusik(code, jusikData[2], jusikData[7])
 	//개인적으로 찍는 log도 포함되어야함
 	Timelog(jusikData)
 }
 
 func (d *DantaTrader) BuyJusik(jusikData []string) {
+	code := rawCodeToCode(jusikData[0])
 	amount, _ := strconv.Atoi(jusikData[2])
 	price, _ := strconv.Atoi(jusikData[3])
 
-	go d.db.addBuyData(jusikData[0], jusikData[1], jusikData[2], jusikData[3], strconv.Itoa(amount*price))
-	d.kiwoom.BuyJusik(jusikData[0], jusikData[2], jusikData[3])
+	go d.db.addBuyData(code, jusikData[1], jusikData[2], jusikData[3], strconv.Itoa(amount*price))
+	d.kiwoom.BuyJusik(code, jusikData[2], jusikData[3])
 
 	Timelog(jusikData)
 }
@@ -77,7 +79,9 @@ func (d *DantaTrader) getRecommended(notBuyList []string, rawCurJusikProfitList 
 		jusikPrice, _ := strconv.Atoi(buyData[2])
 		amount := int(buyPrice / jusikPrice)
 		if d.isContained(buyData[1], notBuyList) == false && d.isContained(buyData[1], curJusikList) == false && amount > 0 {
+
 			buyList[counter] = []string{buyData[0], buyData[1], strconv.Itoa(amount), buyData[2]}
+
 			// 각각 종목코드, 종목이롬, 구매개수, 구매가격을 뜻한다.
 			counter++
 		}

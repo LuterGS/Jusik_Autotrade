@@ -54,7 +54,7 @@ func NewQueueHandler() *QueueHandler {
 	rawVal := strconv.Itoa(int(time.Now().Unix()))[5:]
 	val, _ := strconv.Atoi(rawVal)
 	queueHandler.differ = val * 10
-	Timelog("setting connector complete, differ : ", val)
+	Timelog("setting connector complete, differ : ", queueHandler.differ)
 
 	//recvQueue, sendQueue를 받는 connection 및 channel 생성 및 return
 	queueHandler.recvQueueConnection, queueHandler.recvQueueChannel = queueHandler.getConnection()
@@ -96,16 +96,18 @@ func (q *QueueHandler) consumeQueue(channel *amqp.Channel, queueName string) {
 	for {
 		receiveVal := bytes.Split(amqpHandler.GetFromQueue(), []byte("|"))
 		roomNum, err := strconv.Atoi(string(receiveVal[0]))
+		rawRoomNum := roomNum
 		roomNum = roomNum - q.differ
 		if err != nil {
+			Timelog(rawRoomNum, roomNum, q.differ, " 안되는 이유 파악하기")
 			Timelog("channel 숫자 변환에 오류가 발생했습니다. 프로그램을 종료합니다.")
 			panic("숫자 변환 오류")
 		}
 
-		if roomNum > 9 {
-			Timelog("현재 프로그램에서 Publish한 값이 아니므로 무시합니다.")
-		} else {
+		if -1 < roomNum && roomNum < 10 {
 			q.connector[roomNum] <- string(receiveVal[1])
+		} else {
+			Timelog("현재 프로그램에서 Publish한 값이 아니므로 무시됩니다.\trawRoomNum:", rawRoomNum, "\tq.differ:", q.differ, "\troomNum:", roomNum)
 		}
 	}
 }

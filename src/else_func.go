@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -66,6 +65,15 @@ func getCurTimeString() string {
 	return replacer.Replace(curTime)[:len(curTime)-8]
 }
 
+func rawCodeToCode(code string) string {
+
+	if code[0] == 'A' {
+		return code[1:]
+	} else {
+		return code
+	}
+}
+
 func slice2dPrinter(value [][]string) {
 	for d := range value {
 		Timelog(value[d])
@@ -76,12 +84,14 @@ func SrcTest() {
 
 	//db := NewDBHandler()
 	//db.editCurProfit("1234")
-	test2 := strconv.Itoa(int(time.Now().Unix()))
-	Timelog(test2)
-	test2 = test2[4:]
-	Timelog(test2)
-	test3, _ := strconv.Atoi(test2)
-	Timelog(test3)
+	test2 := "A00250"
+	if test2[0] == 'A' {
+		Timelog("비교가능")
+		test2 = test2[1:]
+		Timelog(test2)
+	}
+
+	os.Exit(1)
 
 	test := NewQueueHandler()
 	Timelog(test.GetBalance())
