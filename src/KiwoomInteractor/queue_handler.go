@@ -1,4 +1,4 @@
-package src
+package KiwoomInteractor
 
 import (
 	"bytes"
@@ -112,8 +112,9 @@ func (q *QueueHandler) consumeQueue(channel *amqp.Channel, queueName string) {
 	}
 }
 
-func (q *QueueHandler) publishQueue(channel *amqp.Channel, queueName string, value string, timeout float32) [][]string {
+func (q *QueueHandler) publishQueue(channel *amqp.Channel, queueName string, value string, timeout float32) [][]interface{} {
 
+	Timelog(value)
 	//timeout에 따라 정해진 시간만큼 timeout 해줌
 	for {
 		roomNum := <-q.connectorEmpthChecker
@@ -169,9 +170,22 @@ func (q *QueueHandler) publishQueue(channel *amqp.Channel, queueName string, val
 
 }
 
+func (q *QueueHandler) basicGetDayData(reqNum string, code string, dayString string, reqIter int) [][]interface{} {
+	if reqIter == 1 {
+		queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseDayData(reqNum, code, dayString, false), 3.6)
+		return queueOutput
+	} else {
+		queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseDayData(reqNum, code, dayString, false), 3.6)
+		for i := 1; i < reqIter; i++ {
+			queueOutput = append(queueOutput, q.publishQueue(q.sendQueueChannel, q.sendQueue, parseDayData(reqNum, code, dayString, true), 3.6)...)
+		}
+		return queueOutput
+	}
+}
+
 func (q *QueueHandler) GetBalance() int {
 	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, qrBalance, 3.6)
-	returnVal, err := strconv.Atoi(queueOutput[0][0])
+	returnVal, err := strconv.Atoi(queueOutput[0][0].(string))
 	if err != nil {
 		Timelog("잔액요청이 완료되었지만, 잔액 값이 이상해 숫자 변환에 실패했습니다. 값 : ", returnVal)
 		panic("숫자 변환 오류")
@@ -179,12 +193,36 @@ func (q *QueueHandler) GetBalance() int {
 	return returnVal
 }
 
-func (q *QueueHandler) GetHighestTrade(market string, isPercent bool, isMin bool) [][]string {
+// [n][0]은 string, 이하 [n][i] (i != 0) 은 int
+func (q *QueueHandler) GetJongmokMinData(code string, reqIter int) [][]interface{} {
+	if reqIter == 1 {
+		queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseMinData(code, false), 3.6)
+		return queueOutput
+	} else {
+		queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseMinData(code, false), 3.6)
+		for i := 1; i < reqIter; i++ {
+			queueOutput = append(queueOutput, q.publishQueue(q.sendQueueChannel, q.sendQueue, parseMinData(code, true), 3.6)...)
+		}
+		return queueOutput
+	}
+}
+
+// [n][0]은 string, 이하 [n][i] (i != 0) 은 int
+func (q *QueueHandler) GetJongmokDayData(code string, dayString string, reqIter int) [][]interface{} {
+	return q.basicGetDayData(qrGetPastDayData, code, dayString, reqIter)
+}
+
+// [n][0]은 string, 이하 [n][i] (i != 0) 은 int
+func (q *QueueHandler) GetJisuDayData(jisu Jisu, dayString string, reqIter int) [][]interface{} {
+	return q.basicGetDayData(qrGetJisuDayData, string(jisu), dayString, reqIter)
+}
+
+func (q *QueueHandler) GetHighestTrade(market string, isPercent bool, isMin bool) [][]interface{} {
 	queueOuptut := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseHighestRaiseInput(market, isPercent, isMin), 3.6)
 	return queueOuptut
 }
 
-func (q *QueueHandler) GetProfitPercent() [][]string {
+func (q *QueueHandler) GetProfitPercent() [][]interface{} {
 	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, qrGetProfit, 3.6)
 	return queueOutput
 }
@@ -192,7 +230,7 @@ func (q *QueueHandler) GetProfitPercent() [][]string {
 func (q *QueueHandler) ProgramRestart(waitTime int) int {
 	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, qrProgramRestart+","+strconv.Itoa(waitTime), 0.0)
 	time.Sleep(time.Second * time.Duration(waitTime+30)) // 프로그램 재시작 후에 얼마나 더 기다릴것인지, 현재는 10초로 설정이지만 더 늘려야 함
-	sleepTime, err := strconv.Atoi(queueOutput[0][0])
+	sleepTime, err := strconv.Atoi(queueOutput[0][0].(string))
 	if err != nil {
 		Timelog("프로그램 재시작 시간을 Parsing 하던 중 오류가 발생했습니다.")
 		panic("Parsing 오류")
@@ -201,8 +239,8 @@ func (q *QueueHandler) ProgramRestart(waitTime int) int {
 }
 
 func (q *QueueHandler) BuyJusik(code string, amount string, price string) int {
-	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseTradeJusikInput(qrBuyJusik, code, amount, price, qrJijungGaTrade), 0.2)
-	returnVal, err := strconv.Atoi(queueOutput[0][0])
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseTradeJusikInput(qrBuyJusik, code, amount, price, qrSijangGaTrade), 0.2)
+	returnVal, err := strconv.Atoi(queueOutput[0][0].(string))
 	if err != nil {
 		Timelog("주식 구매가 완료되었지만, 결과값을 Parsing중 오류가 발생했습니다. 값 : ", returnVal)
 	}
@@ -210,15 +248,15 @@ func (q *QueueHandler) BuyJusik(code string, amount string, price string) int {
 }
 
 func (q *QueueHandler) SellJusik(code string, amount string, price string) int {
-	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseTradeJusikInput(qrSellJusik, code, amount, price, qrJijungGaTrade), 0.2)
-	returnVal, err := strconv.Atoi(queueOutput[0][0])
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseTradeJusikInput(qrSellJusik, code, amount, price, qrSijangGaTrade), 0.2)
+	returnVal, err := strconv.Atoi(queueOutput[0][0].(string))
 	if err != nil {
 		Timelog("주식 판매가 완료되었지만, 결과값을 Parsing중 오류가 발생했습니다. 값 : ", returnVal)
 	}
 	return returnVal
 }
 
-func (q *QueueHandler) GetJogunSik(jogunsikNum int) [][]string {
+func (q *QueueHandler) GetJogunSik(jogunsikNum int) [][]interface{} {
 	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseJogunSik(jogunsikNum), 3.6)
 	return queueOutput
 }

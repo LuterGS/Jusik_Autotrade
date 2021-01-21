@@ -1,13 +1,14 @@
 package src
 
 import (
+	kiwoom "./KiwoomInteractor"
 	"strconv"
 	"time"
 )
 
 type DantaTrader struct {
-	kiwoom *QueueHandler
-	db     *DBHandler
+	kiwoom *kiwoom.QueueHandler
+	db     *kiwoom.DBHandler
 	//file	*FileHandler
 
 	checkEnd *time.Timer //trade는 이 timer가 울릴 때까지 동작한다.
@@ -19,8 +20,8 @@ func NewDantaTrader(checkEnd *time.Timer) *DantaTrader {
 
 	dantaTrader := DantaTrader{}
 
-	dantaTrader.kiwoom = NewQueueHandler()
-	dantaTrader.db = NewDBHandler()
+	dantaTrader.kiwoom = kiwoom.NewQueueHandler()
+	dantaTrader.db = kiwoom.NewDBHandler()
 	//dantaTrader.file = NewFileHandler()
 
 	dantaTrader.checkEnd = checkEnd
@@ -32,25 +33,25 @@ func NewDantaTrader(checkEnd *time.Timer) *DantaTrader {
 
 func (d *DantaTrader) SellJusik(jusikData []string) {
 
-	code := rawCodeToCode(jusikData[0])
-	go d.db.addSellData(code, jusikData[1], jusikData[2], jusikData[7], jusikData[4], jusikData[6], jusikData[5])
+	code := kiwoom.RawCodeToCode(jusikData[0])
+	go d.db.AddSellData(code, jusikData[1], jusikData[2], jusikData[7], jusikData[4], jusikData[6], jusikData[5])
 	d.kiwoom.SellJusik(code, jusikData[2], jusikData[7])
 	//개인적으로 찍는 log도 포함되어야함
-	Timelog(jusikData)
+	kiwoom.Timelog(jusikData)
 }
 
 func (d *DantaTrader) BuyJusik(jusikData []string) {
-	code := rawCodeToCode(jusikData[0])
+	code := kiwoom.RawCodeToCode(jusikData[0])
 	amount, _ := strconv.Atoi(jusikData[2])
 	price, _ := strconv.Atoi(jusikData[3])
 
-	go d.db.addBuyData(code, jusikData[1], jusikData[2], jusikData[3], strconv.Itoa(amount*price))
+	go d.db.AddBuyData(code, jusikData[1], jusikData[2], jusikData[3], strconv.Itoa(amount*price))
 	d.kiwoom.BuyJusik(code, jusikData[2], jusikData[3])
 
-	Timelog(jusikData)
+	kiwoom.Timelog(jusikData)
 }
 
-func (d *DantaTrader) getRecommended(notBuyList []string, rawCurJusikProfitList [][]string) [][]string {
+func (d *DantaTrader) getRecommended(notBuyList []string, rawCurJusikProfitList [][]interface{}) [][]string {
 
 	buyPrice := int(ONE_JONGMOK_PRICE * 0.97)
 
@@ -60,14 +61,14 @@ func (d *DantaTrader) getRecommended(notBuyList []string, rawCurJusikProfitList 
 	}
 	curJusikList := make([]string, len(curJusikProfitList))
 	for index, data := range curJusikProfitList {
-		curJusikList[index] = data[1]
+		curJusikList[index] = data[1].(string)
 	}
 
 	// 로그 찍기
-	Timelog(notBuyList, curJusikList)
+	kiwoom.Timelog(notBuyList, curJusikList)
 
 	buyListNum := TOTAL_JONGMOK_NUM - len(curJusikList)
-	Timelog("buyListNum : ", buyListNum)
+	kiwoom.Timelog("buyListNum : ", buyListNum)
 	if buyListNum == 0 {
 		return nil
 	}
@@ -76,11 +77,11 @@ func (d *DantaTrader) getRecommended(notBuyList []string, rawCurJusikProfitList 
 	rawBuyList := d.kiwoom.GetHighestTrade(CUR_TRADE_MARKET, true, true)
 	counter := 0
 	for _, buyData := range rawBuyList {
-		jusikPrice, _ := strconv.Atoi(buyData[2])
+		jusikPrice, _ := strconv.Atoi(buyData[2].(string))
 		amount := int(buyPrice / jusikPrice)
-		if d.isContained(buyData[1], notBuyList) == false && d.isContained(buyData[1], curJusikList) == false && amount > 0 {
+		if d.isContained(buyData[1].(string), notBuyList) == false && d.isContained(buyData[1].(string), curJusikList) == false && amount > 0 {
 
-			buyList[counter] = []string{buyData[0], buyData[1], strconv.Itoa(amount), buyData[2]}
+			buyList[counter] = []string{buyData[0].(string), buyData[1].(string), strconv.Itoa(amount), buyData[2].(string)}
 
 			// 각각 종목코드, 종목이롬, 구매개수, 구매가격을 뜻한다.
 			counter++
@@ -90,7 +91,7 @@ func (d *DantaTrader) getRecommended(notBuyList []string, rawCurJusikProfitList 
 			break
 		}
 	}
-	Timelog(buyList)
+	kiwoom.Timelog(buyList)
 	return buyList
 }
 
@@ -109,22 +110,22 @@ func (d *DantaTrader) isEnd() bool {
 
 	select {
 	case <-d.checkEnd.C: //종료 시점일 때
-		Timelog("단타가 끝났습니다.")
-		go d.db.removeNotBuyList()
+		kiwoom.Timelog("단타가 끝났습니다.")
+		go d.db.RemoveNotBuyList()
 
 		if END_DANTA_SELL_ALL {
-			Timelog("설정에 따라 모든 주식을 매매합니다.")
+			kiwoom.Timelog("설정에 따라 모든 주식을 매매합니다.")
 			curJusiks := d.kiwoom.GetProfitPercent()
 			for _, data := range curJusiks {
-				d.SellJusik(data)
+				d.SellJusik(kiwoom.IArraytoSArray(data))
 			}
 		} else {
-			Timelog("설정에 따라 주식을 매매하지 않고 종료합니다.")
+			kiwoom.Timelog("설정에 따라 주식을 매매하지 않고 종료합니다.")
 		}
 
-		Timelog("오늘의 재구매 없는 주식 : ", d.db.getNotBuyList())
-		Timelog("오늘의 이득금액 : ", d.db.getCurProfit())
-		Timelog("현재 보유금액 : ", d.kiwoom.GetBalance())
+		kiwoom.Timelog("오늘의 재구매 없는 주식 : ", d.db.GetNotBuyList())
+		kiwoom.Timelog("오늘의 이득금액 : ", d.db.GetCurProfit())
+		kiwoom.Timelog("현재 보유금액 : ", d.kiwoom.GetBalance())
 		return true
 	default:
 		return false
@@ -135,7 +136,8 @@ func (d *DantaTrader) trade() {
 
 	for {
 		curProfitJusiks := d.kiwoom.GetProfitPercent()
-		notBuyList := d.db.getNotBuyList()
+		// Timelog("cur_profit : ", curProfitJusiks)
+		notBuyList := d.db.GetNotBuyList()
 
 		//매도로 인해 현재 종목수가 부족할 때
 		if len(curProfitJusiks) < TOTAL_JONGMOK_NUM {
@@ -148,12 +150,12 @@ func (d *DantaTrader) trade() {
 
 		//거래 비교 시작
 		for _, data := range curProfitJusiks {
-			profitPercent, _ := strconv.ParseFloat(data[6], 32)
+			profitPercent, _ := strconv.ParseFloat(data[6].(string), 32)
 			if profitPercent > MAX_PROFIT_PERCENT {
-				d.SellJusik(data)
+				d.SellJusik(kiwoom.IArraytoSArray(data))
 			} else if profitPercent < -1.0*MAX_LOSS_PERCENT {
-				go d.db.setNotBuyList(data[1])
-				d.SellJusik(data)
+				go d.db.SetNotBuyList(data[1].(string))
+				d.SellJusik(kiwoom.IArraytoSArray(data))
 			}
 		}
 

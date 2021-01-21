@@ -16,7 +16,7 @@ func main() {
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	// test.SrcTest()
+	test.Test()
 
 	// TODO : Buy, Sell Jusik을 테스트해봐야 함
 

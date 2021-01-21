@@ -1,4 +1,4 @@
-package src
+package KiwoomInteractor
 
 import (
 	"github.com/streadway/amqp"

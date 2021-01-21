@@ -1,4 +1,4 @@
-package src
+package KiwoomInteractor
 
 import (
 	"context"
@@ -87,7 +87,7 @@ func (d *DBHandler) editCurProfit(profitPrice string) {
 	d.redis.Set(d.redisCtx, d.todayProfit, curProfitInt+profitPriceInt, 0)
 }
 
-func (d *DBHandler) getCurProfit() int {
+func (d *DBHandler) GetCurProfit() int {
 	curProfitVal := d.redis.Get(d.redisCtx, d.todayProfit).Val()
 	go d.redis.Set(d.redisCtx, d.todayProfit, 0, 0)
 	curProfitValInt, _ := strconv.Atoi(curProfitVal)
@@ -101,7 +101,7 @@ func (d *DBHandler) addOrderData(channel chan string) {
 	channel <- curTime
 }
 
-func (d *DBHandler) addBuyData(code string, name string, amount string, price string, totalPrice string) {
+func (d *DBHandler) AddBuyData(code string, name string, amount string, price string, totalPrice string) {
 
 	curTime := make(chan string, 1)
 	defer close(curTime)
@@ -114,7 +114,7 @@ func (d *DBHandler) addBuyData(code string, name string, amount string, price st
 	d.redis.HMSet(d.redisCtx, d.user+"_"+<-curTime, d.buyType)
 }
 
-func (d *DBHandler) addSellData(code string, name string, amount string, price string, totalPrice string, profitPercent string, profitTotalPrice string) {
+func (d *DBHandler) AddSellData(code string, name string, amount string, price string, totalPrice string, profitPercent string, profitTotalPrice string) {
 
 	curTime := make(chan string, 1)
 	defer close(curTime)
@@ -130,7 +130,7 @@ func (d *DBHandler) addSellData(code string, name string, amount string, price s
 	d.redis.HMSet(d.redisCtx, d.user+"_"+<-curTime, d.sellType)
 }
 
-func (d *DBHandler) getNotBuyList() []string {
+func (d *DBHandler) GetNotBuyList() []string {
 
 	notBuyMap := d.redis.HGetAll(d.redisCtx, d.notBuyList).Val()
 	var notBuyList []string
@@ -143,7 +143,7 @@ func (d *DBHandler) getNotBuyList() []string {
 	return notBuyList
 }
 
-func (d *DBHandler) setNotBuyList(codeName string) int {
+func (d *DBHandler) SetNotBuyList(codeName string) int {
 
 	counter, _ := strconv.Atoi(d.redis.HGet(d.redisCtx, d.notBuyList, codeName).Val())
 	counter++
@@ -151,7 +151,7 @@ func (d *DBHandler) setNotBuyList(codeName string) int {
 	return counter
 }
 
-func (d *DBHandler) removeNotBuyList() bool {
+func (d *DBHandler) RemoveNotBuyList() bool {
 
 	val := d.redis.Del(d.redisCtx, d.notBuyList).Val()
 	// 지워졌으면 true, 아니면 false 리턴함
@@ -160,5 +160,5 @@ func (d *DBHandler) removeNotBuyList() bool {
 
 func (d *DBHandler) InputTest() {
 
-	Timelog(d.getNotBuyList())
+	Timelog(d.GetNotBuyList())
 }
