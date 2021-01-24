@@ -2,6 +2,7 @@ package src
 
 import (
 	trader "./KiwoomInteractor"
+	"sync"
 	"time"
 )
 
@@ -17,12 +18,7 @@ func Mainer() {
 		} else if curTimeChunk == 1 { // 현재 시간이 점검 시간일 때
 			trader.Timelog("현재 점검중입니다. 프로그램도 잠시 쉽니다.")
 
-			curTime := time.Now()
-			estimateTime := time.Date(curTime.Year(), curTime.Month(), curTime.Day(), SIG_B_HOUR, SIG_B_MIN, 0, 0, curTime.Location())
-			timeDiff := int(estimateTime.Sub(curTime).Round(time.Second) / time.Second)
-
-			restarter := trader.NewQueueHandler()
-			restarter.ProgramRestart(timeDiff)
+			go restartKiwoom()
 
 			<-curTimer.C
 			curTimer.Stop()
@@ -33,8 +29,16 @@ func Mainer() {
 			curTimer.Stop()
 		} else if curTimeChunk == 3 { // 현재 시간이 단타알고리즘 시간일 때
 			trader.Timelog("현재 단타알고리즘 시간입니다.")
-			danta := NewDantaTrader(curTimer)
-			danta.trade()
+
+			var waiter sync.WaitGroup
+			waiter.Add(1)
+			go func() {
+				danta := NewDantaTrader(curTimer)
+				danta.trade()
+				waiter.Done()
+			}()
+			waiter.Wait()
+
 		} else if curTimeChunk == 4 { // 현재 시간이 AI 트레이더 시간일 때
 			trader.Timelog("현재 AI 트레이더 시간입니다.")
 
@@ -63,4 +67,14 @@ func setCurTimer() (int, *time.Timer) {
 	timeDiff := estimateTime.Sub(curTime)
 	timer := time.NewTimer(timeDiff)
 	return 0, timer
+}
+
+func restartKiwoom() {
+
+	curTime := time.Now()
+	estimateTime := time.Date(curTime.Year(), curTime.Month(), curTime.Day(), SIG_B_HOUR, SIG_B_MIN, 0, 0, curTime.Location())
+	timeDiff := int(estimateTime.Sub(curTime).Round(time.Second) / time.Second)
+
+	restarter := trader.NewQueueHandler()
+	restarter.ProgramRestart(timeDiff)
 }
