@@ -19,6 +19,7 @@ const (
 	qrProgramRestart  string = "7"
 	qrGetPastDayData  string = "8"
 	qrGetJisuDayData  string = "9"
+	qrGetKoreanName   string = "10"
 
 	qrJijungGaTrade tradeBuyType = "00"
 	qrSijangGaTrade tradeBuyType = "03"
@@ -34,9 +35,14 @@ func parseFunc() []parser {
 		_parseProfit,         //5
 		_parseJogunsik,       //6
 		_parseProgramRestart, //7
-		_parsePastData,       // TODO : 일봉 Parsing 하는 함수 만들어야함
-		_parsePastData,       // TODO : 지수 Parsing 하는 함수 만들어야함
+		_parsePastData,       //8
+		_parsePastData,       //9
+		_parseOneData,        //10
 	}
+}
+
+func parseKoreanNameInput(code string) string {
+	return qrGetKoreanName + "," + code
 }
 
 func parseTradeJusikInput(tradeType string, code string, amount string, price string, howToTrade tradeBuyType) string {
@@ -157,7 +163,8 @@ func _parsePastData(inputValue string) [][]interface{} {
 }
 
 // Sliced된 길이가 8인 배열에서, 각각의 값은 다음을 의미한다.
-// 종목코드, 종목이름, 주식보유수, 주식총구매금약, 현재주식평가금약, 손익금액, 손익퍼센트, 현재주식가격
+// 종목코드, 종목이름, 주식보유수, 주식총구매금액, 현재주식평가금액, 손익금액, 손익퍼센트, 현재주식가격
+// 각각 string, string, int, int, int, int, float32, int임
 func _parseProfit(inputValue string) [][]interface{} {
 
 	outputRawSeperated := strings.Split(inputValue, "/")
@@ -167,6 +174,16 @@ func _parseProfit(inputValue string) [][]interface{} {
 	for i := range outputSlice {
 		outputSlice[i] = make([]interface{}, 8)
 		splitted := strings.Split(outputRawSeperated[i+1], ",")
+		outputSlice[i][0] = splitted[0]
+		outputSlice[i][1] = splitted[1]
+		outputSlice[i][2], _ = strconv.Atoi(splitted[2])
+		outputSlice[i][3], _ = strconv.Atoi(splitted[3])
+		outputSlice[i][4], _ = strconv.Atoi(splitted[4])
+		outputSlice[i][5], _ = strconv.Atoi(splitted[5])
+		temp, _ := strconv.ParseFloat(splitted[6], 32)
+		outputSlice[i][6] = float32(temp)
+		outputSlice[i][7], _ = strconv.Atoi(splitted[7])
+
 		for index, data := range splitted {
 			outputSlice[i][index] = data
 		}

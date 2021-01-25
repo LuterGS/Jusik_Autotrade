@@ -77,11 +77,11 @@ func (d *DantaTrader) getRecommended(notBuyList []string, rawCurJusikProfitList 
 	rawBuyList := d.kiwoom.GetHighestTrade(CUR_TRADE_MARKET, true, true)
 	counter := 0
 	for _, buyData := range rawBuyList {
-		jusikPrice, _ := strconv.Atoi(buyData[2].(string))
+		jusikPrice, _ := strconv.Atoi(buyData[2])
 		amount := int(buyPrice / jusikPrice)
-		if d.isContained(buyData[1].(string), notBuyList) == false && d.isContained(buyData[1].(string), curJusikList) == false && amount > 0 {
+		if d.isContained(buyData[1], notBuyList) == false && d.isContained(buyData[1], curJusikList) == false && amount > 0 {
 
-			buyList[counter] = []string{buyData[0].(string), buyData[1].(string), strconv.Itoa(amount), buyData[2].(string)}
+			buyList[counter] = []string{buyData[0], buyData[1], strconv.Itoa(amount), buyData[2]}
 
 			// 각각 종목코드, 종목이롬, 구매개수, 구매가격을 뜻한다.
 			counter++

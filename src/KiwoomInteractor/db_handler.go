@@ -96,7 +96,7 @@ func (d *DBHandler) GetCurProfit() int {
 
 func (d *DBHandler) addOrderData(channel chan string) {
 
-	curTime := getCurTimeString()
+	curTime := GetCurTimeMilliString()
 	go d.redis.RPush(d.redisCtx, d.user, curTime)
 	channel <- curTime
 }

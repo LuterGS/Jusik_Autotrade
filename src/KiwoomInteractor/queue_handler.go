@@ -217,9 +217,17 @@ func (q *QueueHandler) GetJisuDayData(jisu Jisu, dayString string, reqIter int) 
 	return q.basicGetDayData(qrGetJisuDayData, string(jisu), dayString, reqIter)
 }
 
-func (q *QueueHandler) GetHighestTrade(market string, isPercent bool, isMin bool) [][]interface{} {
-	queueOuptut := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseHighestRaiseInput(market, isPercent, isMin), 3.6)
-	return queueOuptut
+// 종목코드, 종목이름, 현재주식금액, 총거래액 (모두 str)
+func (q *QueueHandler) GetHighestTrade(market string, isPercent bool, isMin bool) [][]string {
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseHighestRaiseInput(market, isPercent, isMin), 3.6)
+	result := make([][]string, len(queueOutput))
+	for index, data := range queueOutput {
+		result[index] = make([]string, 4)
+		for i := 0; i < 4; i++ {
+			result[index][i] = data[i].(string)
+		}
+	}
+	return result
 }
 
 func (q *QueueHandler) GetProfitPercent() [][]interface{} {
@@ -256,9 +264,19 @@ func (q *QueueHandler) SellJusik(code string, amount string, price string) int {
 	return returnVal
 }
 
-func (q *QueueHandler) GetJogunSik(jogunsikNum int) [][]interface{} {
+//string 배열임
+func (q *QueueHandler) GetJogunSik(jogunsikNum int) []string {
 	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseJogunSik(jogunsikNum), 3.6)
-	return queueOutput
+	result := make([]string, len(queueOutput[0]))
+	for index, data := range queueOutput[0] {
+		result[index] = data.(string)
+	}
+	return result
+}
+
+func (q *QueueHandler) GetKoreanName(code string) string {
+	queueOutput := q.publishQueue(q.sendQueueChannel, q.sendQueue, parseKoreanNameInput(code), 3.6)
+	return queueOutput[0][0].(string)
 }
 
 func (q *QueueHandler) Test() {

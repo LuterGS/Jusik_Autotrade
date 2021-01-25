@@ -59,10 +59,18 @@ func timeSleep(timeVal chan int64, timeoutSec float32) {
 	go func() { timeVal <- saveTime }()
 }
 
-func getCurTimeString() string {
-	curTime := time.Now().Format(time.RFC3339Nano)
-	replacer := strings.NewReplacer("-", "", "T", "", ":", "", ".", "")
-	return replacer.Replace(curTime)[:len(curTime)-8]
+func basicTimetoString(replace int) string {
+	replacer := strings.NewReplacer("-", "", "T", "", ":", "", ".", "", "+", "")
+	curTime := replacer.Replace(time.Now().Format(time.RFC3339Nano))
+	return curTime[:len(curTime)-replace]
+}
+
+func GetCurTimeMilliString() string {
+	return basicTimetoString(10)
+}
+
+func GetCurTimeDaySting() string {
+	return basicTimetoString(19)
 }
 
 func RawCodeToCode(code string) string {

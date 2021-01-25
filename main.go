@@ -2,6 +2,7 @@ package main
 
 import (
 	test "./src"
+	"os"
 	"runtime"
 )
 
@@ -19,6 +20,10 @@ func main() {
 	//test.Test()
 
 	// TODO : Buy, Sell Jusik을 테스트해봐야 함
+
+	t2 := test.NewJusikGetter()
+	t2.GetRecommendList(7)
+	os.Exit(1)
 
 	test.Mainer()
 
